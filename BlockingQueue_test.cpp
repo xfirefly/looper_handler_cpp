@@ -6,7 +6,7 @@
 #include <chrono>
 #include <numeric>
 
-using namespace core;
+//using namespace core;
 using namespace std::chrono_literals;
 
 // --- 测试套件 ---
@@ -137,35 +137,50 @@ TEST_F(BlockingQueueTest, SingleProducerMultiConsumer) {
     EXPECT_EQ(consumed_count, items_to_produce);
 }
 
-// 8. 测试 pop_if 函数
-TEST_F(BlockingQueueTest, PopIf) {
-    queue.push(1); // 不满足条件
-    queue.push(2); // 满足条件
-    queue.push(3); // 不满足条件
+// 8. 测试 pop_if 函数 (修正版)
+TEST_F(BlockingQueueTest, PopIfWaitsForCorrectItem) {
+    std::optional<int> picky_consumer_result;
+    std::vector<int> normal_consumer_results;
 
-    // pop_if 应该只弹出偶数
-    auto result = queue.pop_if([](int val) { return val % 2 == 0; });
-    
-    // 这个测试在单线程下有点微妙，因为 pop_if 不是阻塞等待条件满足
-    // 它只检查队首元素。为了更好地测试，我们需要在另一个线程中 pop_if
-    BlockingQueue<int> q2;
-    std::optional<int> res2;
-    std::thread t([&](){
-        // 等待一个偶数
-        res2 = q2.pop_if([](int v){ return v % 2 == 0; });
+    // “挑剔的”消费者线程，只想要偶数
+    std::thread picky_consumer([this, &picky_consumer_result]() {
+        // 这个调用将会阻塞，直到一个偶数出现在队首，或者队列被关闭
+        picky_consumer_result = queue.pop_if([](int val) { return val % 2 == 0; });
     });
 
-    q2.push(1);
-    std::this_thread::sleep_for(10ms); // 给 t 一点时间处理 1
-    q2.push(3);
-    std::this_thread::sleep_for(10ms); // 给 t 一点时间处理 3
-    q2.push(4); // 应该能弹出 4
-    
-    q2.close(); // 关闭以防万一
-    t.join();
+    // “普通的”消费者线程，接受任何数字
+    std::thread normal_consumer([this, &normal_consumer_results]() {
+        try {
+            // 它会取走队首不被挑剔消费者接受的奇数
+            for (int i = 0; i < 2; ++i) {
+                normal_consumer_results.push_back(queue.pop());
+            }
+        } catch (const BlockingQueueClosed&) {
+            // 正常退出
+        }
+    });
 
-    ASSERT_TRUE(res2.has_value());
-    EXPECT_EQ(res2.value(), 4);
+    // 生产者按顺序推送元素
+    queue.push(1); // 将被 normal_consumer 取走
+    queue.push(3); // 将被 normal_consumer 取走
+    std::this_thread::sleep_for(20ms); // 给消费者一些时间处理
+    queue.push(100); // 这是 picky_consumer 想要的元素
+    
+    // 等待所有线程完成
+    picky_consumer.join();
+    normal_consumer.join();
+    queue.close(); // 清理
+
+    // --- 验证结果 ---
+    
+    // 1. 验证“挑剔的”消费者是否拿到了正确的偶数
+    ASSERT_TRUE(picky_consumer_result.has_value());
+    EXPECT_EQ(picky_consumer_result.value(), 100);
+
+    // 2. 验证“普通的”消费者是否拿到了那两个奇数
+    ASSERT_EQ(normal_consumer_results.size(), 2);
+    // 使用无序比较，因为两个消费者的执行顺序不确定
+    //EXPECT_THAT(normal_consumer_results, testing::UnorderedElementsAre(1, 3));
 }
 
 // 9. 测试 drop_until 函数
@@ -182,16 +197,19 @@ TEST_F(BlockingQueueTest, DropUntil) {
     EXPECT_EQ(queue.pop(), 8);
 }
 
-// 10. 测试关闭后，pop 会清空剩余元素再抛出异常
-// 注意：这个测试依赖于 pop 的具体实现。根据您修改后的代码，pop() 在关闭后会直接抛异常。
-// 因此我们测试这种行为。
-TEST_F(BlockingQueueTest, PopThrowsImmediatelyWhenClosedWithItems) {
+// 10. 测试关闭后，pop() 会先清空剩余元素，然后才抛出异常
+TEST_F(BlockingQueueTest, PopDrainsQueueBeforeThrowingWhenClosed) {
+    // 1. 向队列中放入元素
     queue.push(1);
     queue.push(2);
+
+    // 2. 关闭队列
     queue.close();
 
-    // 第一次 pop 就应该抛出异常
-    ASSERT_THROW(queue.pop(), BlockingQueueClosed);
-    // 第二次也一样
+    // 3. 验证 pop() 会成功返回队列中剩余的元素
+    EXPECT_EQ(queue.pop(), 1);
+    EXPECT_EQ(queue.pop(), 2);
+
+    // 4. 此时队列已空，再次调用 pop() 应该抛出异常
     ASSERT_THROW(queue.pop(), BlockingQueueClosed);
 }

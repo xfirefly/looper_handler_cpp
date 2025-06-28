@@ -7,118 +7,116 @@
 #include <mutex>
 #include <optional>
 
-namespace core {
- 
 class BlockingQueueClosed : public std::exception
 {
 public:
-	const char * what() const noexcept override
-	{
-		return "BlockingQueueClosed";
-	}
+    const char * what() const noexcept override
+    {
+        return "BlockingQueueClosed";
+    }
 };
 
 template <typename T>
 class BlockingQueue
 {
-	std::deque<T> queue;
-	std::condition_variable cv;
-	std::mutex mutex;
-	bool closed = false;
+    std::deque<T> queue;
+    std::condition_variable cv;
+    std::mutex mutex;
+    bool closed = false;
 
 public:
-	void push(T && item)
-	{
-		std::lock_guard lock(mutex);
+    void push(T&& item)
+    {
+        std::lock_guard lock(mutex);
+        if (closed) {
+            throw BlockingQueueClosed{};
+        }
+        queue.push_back(std::move(item));
+        cv.notify_one();
+    }
 
-		queue.push_back(std::move(item));
-		cv.notify_one();
-	}
+    void push(const T& item)
+    {
+        std::lock_guard lock(mutex);
+        if (closed) {
+            throw BlockingQueueClosed{};
+        }
+        queue.push_back(item);
+        cv.notify_one();
+    }
 
-	void push(const T& item)
-	{
-		T item_copy = item; // 在锁外创建拷贝
-		std::lock_guard lock(mutex);
-		if (closed) {
-			// 可以在此抛出异常，防止向已关闭的队列添加元素
-			throw BlockingQueueClosed{};
-		}
-		queue.push_back(std::move(item_copy)); // 将拷贝移入队列
-		cv.notify_one();
-	}
+    template <typename Pred>
+    std::optional<T> pop_if(Pred&& pred)
+    {
+        std::unique_lock lock(mutex);
+        while (true)
+        {
+            cv.wait(lock, [&]() { return !queue.empty() || closed; });
 
-	template <typename Pred>
-	std::optional<T> pop_if(Pred&& pred)
-	{
-		std::unique_lock lock(mutex);
+            if (!queue.empty())
+            {
+                if (pred(queue.front()))
+                {
+                    T item = std::move(queue.front());
+                    queue.pop_front();
+                    return item;
+                }
+                // 如果队首元素不满足条件，但队列已关闭，我们不能再等了，
+                // 因为不会有新元素了。直接返回空，让调用者知道没有符合条件的元素。
+                if (closed) {
+                    return {};
+                }
+            }
+            else if (closed) // 队列为空，且已关闭
+            {
+                return {};
+            }
+            // 如果队列不为空但不满足条件，且未关闭，则循环继续，线程将重新等待
+        }
+    }
 
-		while (true) // 使用循环来处理假唤醒和条件不满足的情况
-		{
-			cv.wait(lock, [&]() { return !queue.empty() || closed; });
+    T pop()
+    {
+        std::unique_lock lock(mutex);
+        cv.wait(lock, [&]() { return !queue.empty() || closed; });
 
-			if (closed && queue.empty())
-				return {}; // 返回空的 optional 而不是抛出异常，让调用者决定如何处理
+        // 优先检查队列是否还有元素
+        if (!queue.empty())
+        {
+            T item = std::move(queue.front());
+            queue.pop_front();
+            return item;
+        }
 
-			assert(!queue.empty());
+        // 只有当队列为空，并且已经关闭时，才抛出异常
+        // 这确保了队列会被完全“排干”(drained)
+        assert(closed);
+        throw BlockingQueueClosed{};
+    }
 
-			if (pred(queue.front()))
-			{
-				T item = std::move(queue.front());
-				queue.pop_front();
-				return item;
-			}
+    template <typename Pred>
+    void drop_until(Pred&& pred)
+    {
+        std::unique_lock lock(mutex);
+        while (!queue.empty() && !pred(queue.front()))
+            queue.pop_front();
+    }
 
-			// 如果条件不满足，但队列已关闭且没有更多元素了，也应该退出
-			if (closed) {
-				return {};
-			}
-			// 如果条件不满足，循环会继续，线程会重新进入等待状态
-		}
-	}
+    T peek()
+    {
+        std::unique_lock lock(mutex);
+        cv.wait(lock, [&]() { return !queue.empty() || closed; });
 
-	T pop()
-	{
-		std::unique_lock lock(mutex);
+        if (queue.empty())
+            throw BlockingQueueClosed{};
 
-		cv.wait(lock, [&]() { return !queue.empty() || closed; });
+        return queue.front();
+    }
 
-		if (closed)
-			throw BlockingQueueClosed{};
-
-		assert(!queue.empty());
-		T item = std::move(queue.front());
-		queue.pop_front();
-
-		return item;
-	}
-
-	template <typename Pred>
-	void drop_until(Pred && pred)
-	{
-		std::unique_lock lock(mutex);
-
-		while (!queue.empty() && !pred(queue.front()))
-			queue.pop_front();
-	}
-
-	T peek()
-	{
-		std::unique_lock lock(mutex);
-		cv.wait(lock, [&]() { return !queue.empty() || closed; });
-
-		if (closed && queue.empty()) // 在返回前再次检查，以防 close() 后队列被清空
-			throw BlockingQueueClosed{};
-
-		assert(!queue.empty());
-		return queue.front(); // 返回一个拷贝
-	}
-
-	void close()
-	{
-		std::lock_guard lock(mutex);
-		closed = true;
-		cv.notify_all();
-	}
+    void close()
+    {
+        std::lock_guard lock(mutex);
+        closed = true;
+        cv.notify_all();
+    }
 };
- 
-}

@@ -53,6 +53,18 @@ public:
 
 
 int main() {
+    // 获取默认的 Preferences 实例
+    auto defaultPrefs = core::PreferencesManager::getDefaultPreferences();
+    print_all_prefs(defaultPrefs);
+    // 使用它
+    defaultPrefs->edit()->putString("welcome_message", "Hello Default Prefs!").commit(); 
+
+    print_all_prefs(core::PreferencesManager::getDefaultPreferences());
+    
+
+    std::cout << "Default Welcome Message: " << defaultPrefs->getString("welcome_message", "") << std::endl;
+
+
     std::cout << "--- Preferences Sample ---" << std::endl;
 
     // 1. 获取一个名为 "sample_prefs" 的 Preferences 实例

@@ -87,6 +87,7 @@ private:
 class PreferencesManager {
 public:
     static std::shared_ptr<Preferences> getInstance(const std::string& name);
+    static std::shared_ptr<Preferences> getDefaultPreferences();
 private:
     static std::mutex sMutex;
     static std::map<std::string, std::shared_ptr<Preferences>> sInstances;

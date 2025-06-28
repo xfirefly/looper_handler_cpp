@@ -5,6 +5,7 @@
 #include <thread>
 #include <chrono>
 #include <iostream>
+#include <fstream> // 用于文件操作
 
 using namespace core;
 
@@ -14,6 +15,27 @@ const std::string TEST_PREFS_NAME = "test_prefs";
 class PreferencesTest : public ::testing::Test {
 protected:
     std::shared_ptr<Preferences> prefs;
+
+    // 获取测试文件的完整路径
+    std::string getTestFilePath() {
+        std::filesystem::path dir_path;
+#ifdef _WIN32
+        char* buffer = nullptr;
+        size_t size = 0;
+        if (_dupenv_s(&buffer, &size, "USERPROFILE") == 0 && buffer != nullptr) {
+            dir_path = buffer;
+            free(buffer);
+        } else {
+            dir_path = ".";
+        }
+#else
+        const char* home_dir = std::getenv("HOME");
+        dir_path = (home_dir ? home_dir : ".");
+#endif
+        dir_path /= ".cpp_prefs/";
+        return (dir_path / (TEST_PREFS_NAME + ".toml")).string();
+    }
+
 
     void SetUp() override {
         // 每个测试开始前，获取一个新的实例并清空它，确保测试环境独立
@@ -220,4 +242,48 @@ TEST_F(PreferencesTest, ListenerTest) {
     editor3->commit();
     keys = listener->getChangedKeys();
     EXPECT_TRUE(keys.empty());
+}
+
+// =======================================================================================
+// 新增的 Bug 复现和验证测试
+// 这个测试专门用来验证“修改一个值导致其他值被清除”的 bug
+// =======================================================================================
+TEST_F(PreferencesTest, FullPersistenceTest) {
+    // 1. 手动创建一个包含多种数据类型的 toml 文件
+    std::string test_file_path = getTestFilePath();
+    std::ofstream ofs(test_file_path, std::ios::trunc);
+    ASSERT_TRUE(ofs.is_open());
+    ofs << R"(
+string_val = "original_string"
+int_val = 123
+long_val = 9876543210
+float_val = 45.6
+bool_val = true
+to_be_modified = "change_me"
+)";
+    ofs.close();
+
+    // 2. 加载这个文件。
+    // 使用一个新的 Preferences 实例来确保它从文件加载
+    auto prefs1 = core::PreferencesManager::getInstance(TEST_PREFS_NAME);
+
+    // 3. 只修改其中一个值并提交
+    prefs1->edit()->putString("to_be_modified", "i_was_changed")->commit();
+    
+    // 4. 再次创建一个全新的实例，强制从磁盘重新加载，以验证持久化结果
+    auto prefs2 = core::PreferencesManager::getInstance(TEST_PREFS_NAME);
+
+    // 5. 验证
+    // a) 验证被修改的值是否正确
+    EXPECT_EQ(prefs2->getString("to_be_modified", ""), "i_was_changed");
+
+    // b) (关键) 验证所有未被修改的值是否仍然存在且正确
+    EXPECT_EQ(prefs2->getString("string_val", ""), "original_string");
+    EXPECT_EQ(prefs2->getInt("int_val", 0), 123);
+    EXPECT_EQ(prefs2->getLong("long_val", 0LL), 9876543210LL);
+    EXPECT_DOUBLE_EQ(prefs2->getFloat("float_val", 0.0), 45.6);
+    EXPECT_TRUE(prefs2->getBool("bool_val", false));
+
+    // c) 检查总数是否正确，确保没有多余或缺少键
+    EXPECT_EQ(prefs2->getAll().size(), 6);
 }

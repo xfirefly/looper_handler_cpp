@@ -26,6 +26,11 @@ std::shared_ptr<Preferences> PreferencesManager::getInstance(const std::string& 
     return sInstances[name];
 }
 
+std::shared_ptr<Preferences> PreferencesManager::getDefaultPreferences() {
+    return getInstance("default_prefs");
+}
+
+
 // --- Preferences 实现 ---
 Preferences::Preferences(const std::string& name) {
     std::filesystem::path dir_path;
@@ -53,6 +58,8 @@ Preferences::Preferences(const std::string& name) {
     loadFromFile();
 }
 
+ 
+
 void Preferences::loadFromFile() {
     std::lock_guard<std::mutex> lock(mMutex);
 
@@ -68,20 +75,31 @@ void Preferences::loadFromFile() {
 
     for (auto const& [key, val] : tbl) {
         std::string key_str(key.str());
+
         if (val.is_string()) {
-            mData[key_str] = *val.as_string();
-        } else if (val.is_integer()) {
-            mData[key_str] = static_cast<long long>(*val.as_integer());
-        } else if (val.is_floating_point()) {
-            mData[key_str] = static_cast<double>(*val.as_floating_point());
-        } else if (val.is_boolean()) {
-            mData[key_str] = *val.as_boolean();
-        } else if (val.is_array()) {
-            auto& arr = *val.as_array();
-            if (!arr.empty() && arr[0].is_string()) {
+            // 从 toml::value<string>* 中获取 std::string
+            mData[key_str] = val.as_string()->get();
+        } 
+        else if (val.is_integer()) {
+            // 从 toml::value<int64_t>* 中获取 long long
+            mData[key_str] = val.as_integer()->get();
+        } 
+        else if (val.is_floating_point()) {
+            // 从 toml::value<double>* 中获取 double
+            mData[key_str] = val.as_floating_point()->get();
+        } 
+        else if (val.is_boolean()) {
+            // 从 toml::value<bool>* 中获取 bool
+            mData[key_str] = val.as_boolean()->get();
+        } 
+        else if (val.is_array()) {
+            auto* arr = val.as_array();
+            if (arr && !arr->empty() && (*arr)[0].is_string()) {
                 std::vector<std::string> string_set;
-                for (const auto& elem : arr) {
-                    string_set.push_back(std::string(*elem.as_string()));
+                string_set.reserve(arr->size()); // 预分配内存以提高效率
+                for (const auto& elem : *arr) {
+                    // 同样，从 toml::value<string>* 中获取 std::string
+                    string_set.push_back(elem.as_string()->get());
                 }
                 mData[key_str] = string_set;
             }

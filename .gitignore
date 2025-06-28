@@ -1,0 +1,15 @@
+*.pcm
+*.h264
+*.obj
+*.log
+*.tlog
+*.pch
+*.pdb
+.vs
+Debug
+/AirplayUI/SetupMsi/Release
+/AirplayLibrary/Release
+/CryptLibrary/Release
+build
+
+

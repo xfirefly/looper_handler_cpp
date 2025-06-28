@@ -62,12 +62,17 @@ Preferences::Preferences(const std::string& name) {
 
 void Preferences::loadFromFile() {
     std::lock_guard<std::mutex> lock(mMutex);
+    mData.clear(); // Clear existing data to ensure a fresh load
+
+    if (!std::filesystem::exists(mFilePath)) {
+        return; // Nothing to load
+    }
 
     toml::table tbl;
     try {
         tbl = toml::parse_file(mFilePath);
     } catch (const toml::parse_error& err) {
-        if (std::filesystem::exists(mFilePath) && std::filesystem::file_size(mFilePath) > 0) {
+        if (std::filesystem::file_size(mFilePath) > 0) {
             std::cerr << "Failed to load preferences from " << mFilePath << ":\n" << err << std::endl;
         }
         return;
@@ -77,29 +82,25 @@ void Preferences::loadFromFile() {
         std::string key_str(key.str());
 
         if (val.is_string()) {
-            // 从 toml::value<string>* 中获取 std::string
-            mData[key_str] = val.as_string()->get();
+            mData[key_str] = val.as_string()->get(); // FIX: Unwrap the string
         } 
         else if (val.is_integer()) {
-            // 从 toml::value<int64_t>* 中获取 long long
-            mData[key_str] = val.as_integer()->get();
+            mData[key_str] = val.as_integer()->get(); // FIX: Unwrap the integer
         } 
         else if (val.is_floating_point()) {
-            // 从 toml::value<double>* 中获取 double
-            mData[key_str] = val.as_floating_point()->get();
+            mData[key_str] = val.as_floating_point()->get(); // FIX: Unwrap the float
         } 
         else if (val.is_boolean()) {
-            // 从 toml::value<bool>* 中获取 bool
-            mData[key_str] = val.as_boolean()->get();
+            mData[key_str] = val.as_boolean()->get(); // FIX: Unwrap the boolean
         } 
         else if (val.is_array()) {
             auto* arr = val.as_array();
+            // Check if it's an array of strings
             if (arr && !arr->empty() && (*arr)[0].is_string()) {
                 std::vector<std::string> string_set;
-                string_set.reserve(arr->size()); // 预分配内存以提高效率
+                string_set.reserve(arr->size());
                 for (const auto& elem : *arr) {
-                    // 同样，从 toml::value<string>* 中获取 std::string
-                    string_set.push_back(elem.as_string()->get());
+                    string_set.push_back(elem.as_string()->get()); // FIX: Unwrap the string in the array
                 }
                 mData[key_str] = string_set;
             }

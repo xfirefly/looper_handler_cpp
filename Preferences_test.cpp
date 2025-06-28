@@ -6,6 +6,10 @@
 #include <chrono>
 #include <iostream>
 #include <fstream> // 用于文件操作
+#include <filesystem>
+#include <cstdlib> // 用于 std::getenv
+#include <algorithm> // for std::find
+#include <climits> // for INT_MIN, INT_MAX
 
 using namespace core;
 
@@ -249,6 +253,7 @@ TEST_F(PreferencesTest, ListenerTest) {
 // 这个测试专门用来验证“修改一个值导致其他值被清除”的 bug
 // =======================================================================================
 TEST_F(PreferencesTest, FullPersistenceTest) {
+    const std::string TEST_PREFS_NAME = "xx";
     // 1. 手动创建一个包含多种数据类型的 toml 文件
     std::string test_file_path = getTestFilePath();
     std::ofstream ofs(test_file_path, std::ios::trunc);
@@ -268,7 +273,7 @@ to_be_modified = "change_me"
     auto prefs1 = core::PreferencesManager::getInstance(TEST_PREFS_NAME);
 
     // 3. 只修改其中一个值并提交
-    prefs1->edit()->putString("to_be_modified", "i_was_changed")->commit();
+   prefs1->edit()->putString("to_be_modified", "i_was_changed").commit();
     
     // 4. 再次创建一个全新的实例，强制从磁盘重新加载，以验证持久化结果
     auto prefs2 = core::PreferencesManager::getInstance(TEST_PREFS_NAME);

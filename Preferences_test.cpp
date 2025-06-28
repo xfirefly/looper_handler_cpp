@@ -1,5 +1,5 @@
 ﻿#include "gtest/gtest.h"
-#include "SharedPreferences.h"
+#include "Preferences.h"
 #include <vector>
 #include <string>
 #include <thread>
@@ -8,16 +8,16 @@
 
 using namespace core;
 
-// 测试用的 SharedPreferences 文件名
+// 测试用的 Preferences 文件名
 const std::string TEST_PREFS_NAME = "test_prefs";
 
-class SharedPreferencesTest : public ::testing::Test {
+class PreferencesTest : public ::testing::Test {
 protected:
-    std::shared_ptr<SharedPreferences> prefs;
+    std::shared_ptr<Preferences> prefs;
 
     void SetUp() override {
         // 每个测试开始前，获取一个新的实例并清空它，确保测试环境独立
-        prefs = SharedPreferencesManager::getInstance(TEST_PREFS_NAME);
+        prefs = PreferencesManager::getInstance(TEST_PREFS_NAME);
         auto editor = prefs->edit();
         editor->clear();
         editor->commit();
@@ -32,7 +32,7 @@ protected:
 };
 
 // 1. 测试基本数据类型: String
-TEST_F(SharedPreferencesTest, StringValue) {
+TEST_F(PreferencesTest, StringValue) {
     auto editor = prefs->edit();
     editor->putString("username", "coder");
     editor->commit();
@@ -42,7 +42,7 @@ TEST_F(SharedPreferencesTest, StringValue) {
 }
 
 // 2. 测试基本数据类型: Int
-TEST_F(SharedPreferencesTest, IntValue) {
+TEST_F(PreferencesTest, IntValue) {
     auto editor = prefs->edit();
     editor->putInt("user_age", 30);
     editor->commit();
@@ -52,7 +52,7 @@ TEST_F(SharedPreferencesTest, IntValue) {
 }
 
 // 3. 测试新增功能: Long
-TEST_F(SharedPreferencesTest, LongValue) {
+TEST_F(PreferencesTest, LongValue) {
     long long large_number = 9876543210LL;
     auto editor = prefs->edit();
     editor->putLong("large_number", large_number);
@@ -64,7 +64,7 @@ TEST_F(SharedPreferencesTest, LongValue) {
 
 
 // 4. 测试基本数据类型: Float
-TEST_F(SharedPreferencesTest, FloatValue) {
+TEST_F(PreferencesTest, FloatValue) {
     auto editor = prefs->edit();
     editor->putFloat("user_score", 99.5f);
     editor->commit();
@@ -74,7 +74,7 @@ TEST_F(SharedPreferencesTest, FloatValue) {
 }
 
 // 5. 测试基本数据类型: Bool
-TEST_F(SharedPreferencesTest, BoolValue) {
+TEST_F(PreferencesTest, BoolValue) {
     auto editor = prefs->edit();
     editor->putBool("is_active", true);
     editor->commit();
@@ -84,7 +84,7 @@ TEST_F(SharedPreferencesTest, BoolValue) {
 }
 
 // 6. 测试新增功能: StringSet
-TEST_F(SharedPreferencesTest, StringSetValue) {
+TEST_F(PreferencesTest, StringSetValue) {
     std::vector<std::string> tags = {"C++", "Android", "Testing"};
     auto editor = prefs->edit();
     editor->putStringSet("tags", tags);
@@ -101,7 +101,7 @@ TEST_F(SharedPreferencesTest, StringSetValue) {
 
 
 // 7. 测试 remove() 和 contains()
-TEST_F(SharedPreferencesTest, RemoveAndContains) {
+TEST_F(PreferencesTest, RemoveAndContains) {
     auto editor = prefs->edit();
     editor->putString("temp_data", "to be removed");
     editor->commit();
@@ -116,7 +116,7 @@ TEST_F(SharedPreferencesTest, RemoveAndContains) {
 }
 
 // 8. 测试 clear()
-TEST_F(SharedPreferencesTest, Clear) {
+TEST_F(PreferencesTest, Clear) {
     auto editor = prefs->edit();
     editor->putString("key1", "value1");
     editor->putInt("key2", 123);
@@ -134,7 +134,7 @@ TEST_F(SharedPreferencesTest, Clear) {
 }
 
 // 9. 测试 apply() 异步提交
-TEST_F(SharedPreferencesTest, Apply) {
+TEST_F(PreferencesTest, Apply) {
     auto editor = prefs->edit();
     editor->putString("async_key", "async_value");
     editor->apply();
@@ -143,12 +143,12 @@ TEST_F(SharedPreferencesTest, Apply) {
     std::this_thread::sleep_for(std::chrono::milliseconds(100));
 
     // 创建一个新的实例来确保从文件中重新加载
-    auto new_prefs = SharedPreferencesManager::getInstance(TEST_PREFS_NAME);
+    auto new_prefs = PreferencesManager::getInstance(TEST_PREFS_NAME);
     EXPECT_EQ(new_prefs->getString("async_key", ""), "async_value");
 }
 
 // 10. 测试新增功能: getAll()
-TEST_F(SharedPreferencesTest, GetAll) {
+TEST_F(PreferencesTest, GetAll) {
     auto editor = prefs->edit();
     editor->putString("name", "test");
     editor->putInt("version", 1);
@@ -164,9 +164,9 @@ TEST_F(SharedPreferencesTest, GetAll) {
 
 
 // 11. 测试新增功能: 变更监听器
-class MockListener : public OnSharedPreferenceChangeListener {
+class MockListener : public OnPreferenceChangeListener {
 public:
-    void onSharedPreferenceChanged(SharedPreferences* sharedPreferences, const std::string& key) override {
+    void onPreferenceChanged(Preferences* preferences, const std::string& key) override {
         std::lock_guard<std::mutex> lock(mtx);
         changed_keys.push_back(key);
     }
@@ -185,9 +185,9 @@ private:
     std::vector<std::string> changed_keys;
 };
 
-TEST_F(SharedPreferencesTest, ListenerTest) {
+TEST_F(PreferencesTest, ListenerTest) {
     auto listener = std::make_shared<MockListener>();
-    prefs->registerOnSharedPreferenceChangeListener(listener);
+    prefs->registerOnPreferenceChangeListener(listener);
 
     // 测试 put
     auto editor = prefs->edit();
@@ -214,7 +214,7 @@ TEST_F(SharedPreferencesTest, ListenerTest) {
     listener->clearChangedKeys();
 
     // 测试 unregister
-    prefs->unregisterOnSharedPreferenceChangeListener(listener);
+    prefs->unregisterOnPreferenceChangeListener(listener);
     auto editor3 = prefs->edit();
     editor3->putBool("another_key", true);
     editor3->commit();

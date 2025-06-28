@@ -1,4 +1,4 @@
-﻿#include "SharedPreferences.h"
+﻿#include "Preferences.h"
 #include "WorkerThread.h"
 #define TOML_ENABLE_FORMATTERS 1
 #include "toml.hpp" // 包含 tomlplusplus 库
@@ -11,23 +11,23 @@
 
 namespace core {
 
-// --- SharedPreferencesManager (无需改动) ---
-std::mutex SharedPreferencesManager::sMutex;
-std::map<std::string, std::shared_ptr<SharedPreferences>> SharedPreferencesManager::sInstances;
+// --- PreferencesManager (无需改动) ---
+std::mutex PreferencesManager::sMutex;
+std::map<std::string, std::shared_ptr<Preferences>> PreferencesManager::sInstances;
 
-std::shared_ptr<SharedPreferences> SharedPreferencesManager::getInstance(const std::string& name) {
+std::shared_ptr<Preferences> PreferencesManager::getInstance(const std::string& name) {
     std::lock_guard<std::mutex> lock(sMutex);
     if (sInstances.find(name) == sInstances.end()) {
-        struct PrefsMaker : public SharedPreferences {
-            PrefsMaker(const std::string& name) : SharedPreferences(name) {}
+        struct PrefsMaker : public Preferences {
+            PrefsMaker(const std::string& name) : Preferences(name) {}
         };
         sInstances[name] = std::make_shared<PrefsMaker>(name);
     }
     return sInstances[name];
 }
 
-// --- SharedPreferences 实现 ---
-SharedPreferences::SharedPreferences(const std::string& name) {
+// --- Preferences 实现 ---
+Preferences::Preferences(const std::string& name) {
     std::filesystem::path dir_path;
 
 #ifdef _WIN32
@@ -53,7 +53,7 @@ SharedPreferences::SharedPreferences(const std::string& name) {
     loadFromFile();
 }
 
-void SharedPreferences::loadFromFile() {
+void Preferences::loadFromFile() {
     std::lock_guard<std::mutex> lock(mMutex);
 
     toml::table tbl;
@@ -90,7 +90,7 @@ void SharedPreferences::loadFromFile() {
 }
 
  
-bool SharedPreferences::saveToFile(const std::map<std::string, std::any>& data, const std::map<std::string, std::any>& modifications) {
+bool Preferences::saveToFile(const std::map<std::string, std::any>& data, const std::map<std::string, std::any>& modifications) {
     toml::table tbl;
 
     for (const auto& pair : data) {
@@ -124,7 +124,7 @@ bool SharedPreferences::saveToFile(const std::map<std::string, std::any>& data, 
         file << tbl;
         std::cout << "Preferences saved to " << mFilePath << std::endl;
         
-        std::vector<std::shared_ptr<OnSharedPreferenceChangeListener>> listeners_copy;
+        std::vector<std::shared_ptr<OnPreferenceChangeListener>> listeners_copy;
         {
             std::lock_guard<std::mutex> lock(mListenersMutex);
             listeners_copy = mListeners;
@@ -134,7 +134,7 @@ bool SharedPreferences::saveToFile(const std::map<std::string, std::any>& data, 
         for(const auto& mod : modifications) {
             for(const auto& listener : listeners_copy) {
                 if(listener) {
-                    listener->onSharedPreferenceChanged(self.get(), mod.first);
+                    listener->onPreferenceChanged(self.get(), mod.first);
                 }
             }
         }
@@ -148,7 +148,7 @@ bool SharedPreferences::saveToFile(const std::map<std::string, std::any>& data, 
 }
 
  
-std::string SharedPreferences::getString(const std::string& key, const std::string& defValue) const {
+std::string Preferences::getString(const std::string& key, const std::string& defValue) const {
     std::lock_guard<std::mutex> lock(mMutex);
     const auto it = mData.find(key);
     if (it != mData.end() && it->second.type() == typeid(std::string)) {
@@ -157,7 +157,7 @@ std::string SharedPreferences::getString(const std::string& key, const std::stri
     return defValue;
 }
 
-int SharedPreferences::getInt(const std::string& key, int defValue) const {
+int Preferences::getInt(const std::string& key, int defValue) const {
     std::lock_guard<std::mutex> lock(mMutex);
     const auto it = mData.find(key);
     if (it != mData.end()) {
@@ -177,7 +177,7 @@ int SharedPreferences::getInt(const std::string& key, int defValue) const {
     return defValue;
 }
 
-long long SharedPreferences::getLong(const std::string& key, long long defValue) const {
+long long Preferences::getLong(const std::string& key, long long defValue) const {
     std::lock_guard<std::mutex> lock(mMutex);
     const auto it = mData.find(key);
     if (it != mData.end() && it->second.type() == typeid(long long)) {
@@ -186,7 +186,7 @@ long long SharedPreferences::getLong(const std::string& key, long long defValue)
     return defValue;
 }
 
-double SharedPreferences::getFloat(const std::string& key, double defValue) const {
+double Preferences::getFloat(const std::string& key, double defValue) const {
     std::lock_guard<std::mutex> lock(mMutex);
     const auto it = mData.find(key);
     if (it != mData.end() && it->second.type() == typeid(double)) {
@@ -195,7 +195,7 @@ double SharedPreferences::getFloat(const std::string& key, double defValue) cons
     return defValue;
 }
 
-bool SharedPreferences::getBool(const std::string& key, bool defValue) const {
+bool Preferences::getBool(const std::string& key, bool defValue) const {
     std::lock_guard<std::mutex> lock(mMutex);
     const auto it = mData.find(key);
     if (it != mData.end() && it->second.type() == typeid(bool)) {
@@ -204,7 +204,7 @@ bool SharedPreferences::getBool(const std::string& key, bool defValue) const {
     return defValue;
 }
 
-std::vector<std::string> SharedPreferences::getStringSet(const std::string& key, const std::vector<std::string>& defValue) const {
+std::vector<std::string> Preferences::getStringSet(const std::string& key, const std::vector<std::string>& defValue) const {
     std::lock_guard<std::mutex> lock(mMutex);
     const auto it = mData.find(key);
     if (it != mData.end() && it->second.type() == typeid(std::vector<std::string>)) {
@@ -214,75 +214,75 @@ std::vector<std::string> SharedPreferences::getStringSet(const std::string& key,
 }
 
  
-std::map<std::string, std::any> SharedPreferences::getAll() const {
+std::map<std::string, std::any> Preferences::getAll() const {
     std::lock_guard<std::mutex> lock(mMutex);
     return mData;
 }
 
-bool SharedPreferences::contains(const std::string& key) const {
+bool Preferences::contains(const std::string& key) const {
     std::lock_guard<std::mutex> lock(mMutex);
     return mData.find(key) != mData.end();
 }
 
-std::unique_ptr<SharedPreferences::Editor> SharedPreferences::edit() {
+std::unique_ptr<Preferences::Editor> Preferences::edit() {
     return std::make_unique<Editor>(*this);
 }
 
-void SharedPreferences::registerOnSharedPreferenceChangeListener(std::shared_ptr<OnSharedPreferenceChangeListener> listener) {
+void Preferences::registerOnPreferenceChangeListener(std::shared_ptr<OnPreferenceChangeListener> listener) {
     if(!listener) return;
     std::lock_guard<std::mutex> lock(mListenersMutex);
     mListeners.push_back(listener);
 }
 
-void SharedPreferences::unregisterOnSharedPreferenceChangeListener(std::shared_ptr<OnSharedPreferenceChangeListener> listener) {
+void Preferences::unregisterOnPreferenceChangeListener(std::shared_ptr<OnPreferenceChangeListener> listener) {
     if(!listener) return;
     std::lock_guard<std::mutex> lock(mListenersMutex);
     mListeners.erase(std::remove(mListeners.begin(), mListeners.end(), listener), mListeners.end());
 }
 
-SharedPreferences::Editor::Editor(SharedPreferences& prefs) : mPrefs(prefs) {}
+Preferences::Editor::Editor(Preferences& prefs) : mPrefs(prefs) {}
 
-SharedPreferences::Editor& SharedPreferences::Editor::putString(const std::string& key, const std::string& value) {
+Preferences::Editor& Preferences::Editor::putString(const std::string& key, const std::string& value) {
     mModifications[key] = value;
     return *this;
 }
 
-SharedPreferences::Editor& SharedPreferences::Editor::putInt(const std::string& key, int value) {
+Preferences::Editor& Preferences::Editor::putInt(const std::string& key, int value) {
     mModifications[key] = value;
     return *this;
 }
 
-SharedPreferences::Editor& SharedPreferences::Editor::putLong(const std::string& key, long long value) {
+Preferences::Editor& Preferences::Editor::putLong(const std::string& key, long long value) {
     mModifications[key] = value;
     return *this;
 }
 
-SharedPreferences::Editor& SharedPreferences::Editor::putFloat(const std::string& key, double value) {
+Preferences::Editor& Preferences::Editor::putFloat(const std::string& key, double value) {
     mModifications[key] = value;
     return *this;
 }
 
-SharedPreferences::Editor& SharedPreferences::Editor::putBool(const std::string& key, bool value) {
+Preferences::Editor& Preferences::Editor::putBool(const std::string& key, bool value) {
     mModifications[key] = value;
     return *this;
 }
 
-SharedPreferences::Editor& SharedPreferences::Editor::putStringSet(const std::string& key, const std::vector<std::string>& value) {
+Preferences::Editor& Preferences::Editor::putStringSet(const std::string& key, const std::vector<std::string>& value) {
     mModifications[key] = value;
     return *this;
 }
 
-SharedPreferences::Editor& SharedPreferences::Editor::remove(const std::string& key) {
+Preferences::Editor& Preferences::Editor::remove(const std::string& key) {
     mModifications[key] = std::any(); // 使用空的 any 来标记移除
     return *this;
 }
 
-SharedPreferences::Editor& SharedPreferences::Editor::clear() {
+Preferences::Editor& Preferences::Editor::clear() {
     mClearRequest = true;
     return *this;
 }
 
-bool SharedPreferences::Editor::commit() {
+bool Preferences::Editor::commit() {
     std::map<std::string, std::any> dataToWrite;
     std::map<std::string, std::any> modifications_copy = mModifications;
     {
@@ -307,7 +307,7 @@ bool SharedPreferences::Editor::commit() {
 static std::unique_ptr<WorkerThread> g_writerThread;
 static std::once_flag g_writerThreadOnceFlag;
 
-void SharedPreferences::Editor::apply() {
+void Preferences::Editor::apply() {
     std::map<std::string, std::any> dataToWrite;
     std::map<std::string, std::any> modifications_copy = mModifications;
     {
@@ -328,7 +328,7 @@ void SharedPreferences::Editor::apply() {
 
     // 使用 std::call_once 来确保后台线程只被创建和启动一次
     std::call_once(g_writerThreadOnceFlag, []() {
-        g_writerThread = std::make_unique<WorkerThread>("SharedPreferencesWriter");
+        g_writerThread = std::make_unique<WorkerThread>("PreferencesWriter");
         g_writerThread->start();
     });
 

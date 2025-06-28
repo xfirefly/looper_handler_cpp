@@ -12,24 +12,24 @@
 
 namespace core {
 
-class SharedPreferences; // 前向声明
+class Preferences; // 前向声明
 
 /**
- * @class OnSharedPreferenceChangeListener
+ * @class OnPreferenceChangeListener
  * @brief 当共享偏好设置发生变化时接收回调的接口。
  */
-class OnSharedPreferenceChangeListener {
+class OnPreferenceChangeListener {
 public:
-    virtual ~OnSharedPreferenceChangeListener() = default;
+    virtual ~OnPreferenceChangeListener() = default;
     /**
      * @brief 当共享偏好设置发生变化时调用。
-     * @param sharedPreferences 发生变化的 SharedPreferences 实例。
+     * @param preferences 发生变化的 Preferences 实例。
      * @param key 发生变化的偏好设置的键。
      */
-    virtual void onSharedPreferenceChanged(SharedPreferences* sharedPreferences, const std::string& key) = 0;
+    virtual void onPreferenceChanged(Preferences* preferences, const std::string& key) = 0;
 };
 
-class SharedPreferences : public std::enable_shared_from_this<SharedPreferences> {
+class Preferences : public std::enable_shared_from_this<Preferences> {
 public:
     class Editor {
     public:
@@ -46,16 +46,16 @@ public:
         bool commit();
         void apply();
 
-        friend class SharedPreferences;
-        Editor(SharedPreferences& prefs);
+        friend class Preferences;
+        Editor(Preferences& prefs);
     private:
-        SharedPreferences& mPrefs;
+        Preferences& mPrefs;
         std::map<std::string, std::any> mModifications;
         bool mClearRequest = false;
     };
 
-    SharedPreferences(const SharedPreferences&) = delete;
-    SharedPreferences& operator=(const SharedPreferences&) = delete;
+    Preferences(const Preferences&) = delete;
+    Preferences& operator=(const Preferences&) = delete;
 
     std::string getString(const std::string& key, const std::string& defValue) const;
     int getInt(const std::string& key, int defValue) const;
@@ -68,28 +68,28 @@ public:
     std::unique_ptr<Editor> edit();
 
     // 新增监听器相关方法
-    void registerOnSharedPreferenceChangeListener(std::shared_ptr<OnSharedPreferenceChangeListener> listener);
-    void unregisterOnSharedPreferenceChangeListener(std::shared_ptr<OnSharedPreferenceChangeListener> listener);
+    void registerOnPreferenceChangeListener(std::shared_ptr<OnPreferenceChangeListener> listener);
+    void unregisterOnPreferenceChangeListener(std::shared_ptr<OnPreferenceChangeListener> listener);
 
 private:
-    friend class SharedPreferencesManager;
-    explicit SharedPreferences(const std::string& name);
+    friend class PreferencesManager;
+    explicit Preferences(const std::string& name);
     void loadFromFile();
     bool saveToFile(const std::map<std::string, std::any>& data, const std::map<std::string, std::any>& modifications);
     
     mutable std::mutex mMutex;
     std::string mFilePath;
     std::map<std::string, std::any> mData;
-    std::vector<std::shared_ptr<OnSharedPreferenceChangeListener>> mListeners; // 新增
+    std::vector<std::shared_ptr<OnPreferenceChangeListener>> mListeners; // 新增
     mutable std::mutex mListenersMutex; // 新增
 };
 
-class SharedPreferencesManager {
+class PreferencesManager {
 public:
-    static std::shared_ptr<SharedPreferences> getInstance(const std::string& name);
+    static std::shared_ptr<Preferences> getInstance(const std::string& name);
 private:
     static std::mutex sMutex;
-    static std::map<std::string, std::shared_ptr<SharedPreferences>> sInstances;
+    static std::map<std::string, std::shared_ptr<Preferences>> sInstances;
 };
 
 } // namespace core

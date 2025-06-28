@@ -1,4 +1,4 @@
-﻿#include "SharedPreferences.h"
+﻿#include "Preferences.h"
 #include <iostream>
 #include <vector>
 #include <string>
@@ -6,8 +6,8 @@
 #include <chrono>
 #include <algorithm> // for std::find
 
-// --- 辅助函数，用于打印 SharedPreferences 的所有内容 ---
-void print_all_prefs(const std::shared_ptr<core::SharedPreferences>& prefs) {
+// --- 辅助函数，用于打印 Preferences 的所有内容 ---
+void print_all_prefs(const std::shared_ptr<core::Preferences>& prefs) {
     std::cout << "\n--- Current Preferences ---" << std::endl;
     auto all_data = prefs->getAll();
     if (all_data.empty()) {
@@ -17,7 +17,7 @@ void print_all_prefs(const std::shared_ptr<core::SharedPreferences>& prefs) {
             std::cout << "'" << pair.first << "': ";
             const auto& type = pair.second.type();
             if (type == typeid(std::string)) {
-                std::cout << "\"" << core::SharedPreferencesManager::getInstance("sample_prefs")->getString(pair.first, "") << "\" (String)";
+                std::cout << "\"" << core::PreferencesManager::getInstance("sample_prefs")->getString(pair.first, "") << "\" (String)";
             } else if (type == typeid(int)) {
                 std::cout << prefs->getInt(pair.first, 0) << " (int)";
             } else if (type == typeid(long long)) {
@@ -43,9 +43,9 @@ void print_all_prefs(const std::shared_ptr<core::SharedPreferences>& prefs) {
 
 
 // --- 自定义监听器，用于演示变更回调 ---
-class MyPreferenceListener : public core::OnSharedPreferenceChangeListener {
+class MyPreferenceListener : public core::OnPreferenceChangeListener {
 public:
-    void onSharedPreferenceChanged(core::SharedPreferences* sharedPreferences, const std::string& key) override {
+    void onPreferenceChanged(core::Preferences* preferences, const std::string& key) override {
         std::cout << "[Listener]: Preference '" << key << "' has changed!" << std::endl;
         // 可以在这里根据 key 执行特定操作
     }
@@ -53,14 +53,14 @@ public:
 
 
 int main() {
-    std::cout << "--- SharedPreferences Sample ---" << std::endl;
+    std::cout << "--- Preferences Sample ---" << std::endl;
 
-    // 1. 获取一个名为 "sample_prefs" 的 SharedPreferences 实例
-    auto prefs = core::SharedPreferencesManager::getInstance("sample_prefs");
+    // 1. 获取一个名为 "sample_prefs" 的 Preferences 实例
+    auto prefs = core::PreferencesManager::getInstance("sample_prefs");
 
     // 2. 注册一个变更监听器
     auto listener = std::make_shared<MyPreferenceListener>();
-    prefs->registerOnSharedPreferenceChangeListener(listener);
+    prefs->registerOnPreferenceChangeListener(listener);
     std::cout << "Listener registered." << std::endl;
 
     // 3. 清理掉上次运行可能留下的数据
@@ -108,7 +108,7 @@ int main() {
 
     // 7. 注销监听器
     std::cout << "\nUnregistering the listener..." << std::endl;
-    prefs->unregisterOnSharedPreferenceChangeListener(listener);
+    prefs->unregisterOnPreferenceChangeListener(listener);
 
     // 再次修改数据
     std::cout << "Changing 'login_count' again..." << std::endl;

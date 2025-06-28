@@ -31,8 +31,8 @@ add_library(looper_handler
     looper_handler.h
     WorkerThread.cpp
     WorkerThread.h    
-    SharedPreferences.cpp
-    SharedPreferences.h
+    Preferences.cpp
+    Preferences.h
 )
 
 # 链接线程库到您的核心库
@@ -49,10 +49,10 @@ include(GoogleTest)
 # --- 可执行文件和测试定义 ---
 
 
-# 1. SharedPreferences 单元测试
-add_executable(SharedPreferences_test SharedPreferences_test.cpp)
-target_link_libraries(SharedPreferences_test PRIVATE looper_handler GTest::Main)
-gtest_add_tests(TARGET SharedPreferences_test)
+# 1. Preferences 单元测试
+add_executable(Preferences_test Preferences_test.cpp)
+target_link_libraries(Preferences_test PRIVATE looper_handler GTest::Main)
+gtest_add_tests(TARGET Preferences_test)
 
 # 2. WorkerThread 单元测试
 add_executable(WorkerThread_test WorkerThread_test.cpp)
@@ -64,9 +64,9 @@ add_executable(HandlerThread_test HandlerThread_test.cpp)
 target_link_libraries(HandlerThread_test PRIVATE looper_handler GTest::Main)
 gtest_add_tests(TARGET HandlerThread_test)
 
-# 4. SharedPreferences 示例程序
-add_executable(SharedPreferences_sample SharedPreferences_sample.cpp)
-target_link_libraries(SharedPreferences_sample PRIVATE looper_handler)
+# 4. Preferences 示例程序
+add_executable(Preferences_sample Preferences_sample.cpp)
+target_link_libraries(Preferences_sample PRIVATE looper_handler)
 
 # 5. 主测试程序
 add_executable(main_test main_test.cpp)
@@ -84,15 +84,20 @@ target_link_libraries(looper_handler_test PRIVATE looper_handler GTest::Main)
 gtest_add_tests(TARGET looper_handler_test)
 
 
-# 
-# ctest -C Debug -V 
+#[=[
 
-# 这些代码是模仿 Android sdk  里面的 java class   的 c++ 版本, 
-# 检查其功能是否和 Android sdk 里面的版本一致, 缺少的功能请说明
-# ; 以及是否有多余的代码, 如果有多余的代码请说明
-# ; 以及是否有错误, 如果有错误请说明      
-# ; 以及是否有不必要的代码, 如果有不必要的代码请说明
-# ; 以及是否有不必要的注释, 如果有不必要的注释请说明
-# ;检查 c++ 版本是否足够健壮, 可用于生产环境, 如果不够健壮请说明
+# 运行测试
+ctest -C Debug -V 
 
-# 为 Handler Looper  添加测试代码, 覆盖全部函数和所有可能的情况
+这些代码是模仿 Android sdk  里面的 java class   的 c++ 版本, 
+仔细检查其功能是否和 Android sdk 里面的版本一致, 缺少的功能请说明
+; 以及是否有多余的代码, 如果有多余的代码请说明
+; 以及是否有错误, 如果有错误请说明      
+; 以及是否有不必要的代码, 如果有不必要的代码请说明
+; 以及是否有不必要的注释, 如果有不必要的注释请说明
+;检查 c++ 版本是否足够健壮, 可用于生产环境, 如果不够健壮请说明
+
+为 Handler Looper  添加测试代码, 覆盖全部函数和所有可能的情况
+
+]=]
+

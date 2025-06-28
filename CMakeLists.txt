@@ -77,6 +77,13 @@ add_executable(BlockingQueue_test BlockingQueue_test.cpp)
 target_link_libraries(BlockingQueue_test PRIVATE looper_handler GTest::Main)
 gtest_add_tests(TARGET BlockingQueue_test)
 
+
+# 7. Handler 和 Looper 单元测试
+add_executable(looper_handler_test looper_handler_test.cpp)
+target_link_libraries(looper_handler_test PRIVATE looper_handler GTest::Main)
+gtest_add_tests(TARGET looper_handler_test)
+
+
 # 
 # ctest -C Debug -V 
 
@@ -88,4 +95,4 @@ gtest_add_tests(TARGET BlockingQueue_test)
 # ; 以及是否有不必要的注释, 如果有不必要的注释请说明
 # ;检查 c++ 版本是否足够健壮, 可用于生产环境, 如果不够健壮请说明
 
-# 为 BlockingQueue 添加测试代码, 覆盖全部函数和所有可能的情况
+# 为 Handler Looper  添加测试代码, 覆盖全部函数和所有可能的情况

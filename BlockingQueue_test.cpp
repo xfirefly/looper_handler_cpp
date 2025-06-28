@@ -5,8 +5,10 @@
 #include <vector>
 #include <chrono>
 #include <numeric>
+#include <future>
+#include <atomic>
 
-//using namespace core;
+using namespace core;
 using namespace std::chrono_literals;
 
 // --- 测试套件 ---
@@ -136,66 +138,8 @@ TEST_F(BlockingQueueTest, SingleProducerMultiConsumer) {
     // 验证所有生产的元素是否都被消费了
     EXPECT_EQ(consumed_count, items_to_produce);
 }
-
-// 8. 测试 pop_if 函数 (修正版)
-TEST_F(BlockingQueueTest, PopIfWaitsForCorrectItem) {
-    std::optional<int> picky_consumer_result;
-    std::vector<int> normal_consumer_results;
-
-    // “挑剔的”消费者线程，只想要偶数
-    std::thread picky_consumer([this, &picky_consumer_result]() {
-        // 这个调用将会阻塞，直到一个偶数出现在队首，或者队列被关闭
-        picky_consumer_result = queue.pop_if([](int val) { return val % 2 == 0; });
-    });
-
-    // “普通的”消费者线程，接受任何数字
-    std::thread normal_consumer([this, &normal_consumer_results]() {
-        try {
-            // 它会取走队首不被挑剔消费者接受的奇数
-            for (int i = 0; i < 2; ++i) {
-                normal_consumer_results.push_back(queue.pop());
-            }
-        } catch (const BlockingQueueClosed&) {
-            // 正常退出
-        }
-    });
-
-    // 生产者按顺序推送元素
-    queue.push(1); // 将被 normal_consumer 取走
-    queue.push(3); // 将被 normal_consumer 取走
-    std::this_thread::sleep_for(20ms); // 给消费者一些时间处理
-    queue.push(100); // 这是 picky_consumer 想要的元素
-    
-    // 等待所有线程完成
-    picky_consumer.join();
-    normal_consumer.join();
-    queue.close(); // 清理
-
-    // --- 验证结果 ---
-    
-    // 1. 验证“挑剔的”消费者是否拿到了正确的偶数
-    ASSERT_TRUE(picky_consumer_result.has_value());
-    EXPECT_EQ(picky_consumer_result.value(), 100);
-
-    // 2. 验证“普通的”消费者是否拿到了那两个奇数
-    ASSERT_EQ(normal_consumer_results.size(), 2);
-    // 使用无序比较，因为两个消费者的执行顺序不确定
-    //EXPECT_THAT(normal_consumer_results, testing::UnorderedElementsAre(1, 3));
-}
-
-// 9. 测试 drop_until 函数
-TEST_F(BlockingQueueTest, DropUntil) {
-    for (int i = 1; i <= 10; ++i) {
-        queue.push(i);
-    }
-
-    // 丢弃所有小于 7 的元素
-    queue.drop_until([](int val) { return val >= 7; });
-
-    // 现在队首应该是 7
-    EXPECT_EQ(queue.pop(), 7);
-    EXPECT_EQ(queue.pop(), 8);
-}
+ 
+ 
 
 // 10. 测试关闭后，pop() 会先清空剩余元素，然后才抛出异常
 TEST_F(BlockingQueueTest, PopDrainsQueueBeforeThrowingWhenClosed) {

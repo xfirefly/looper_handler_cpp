@@ -72,6 +72,11 @@ target_link_libraries(SharedPreferences_sample PRIVATE looper_handler)
 add_executable(main_test main_test.cpp)
 target_link_libraries(main_test PRIVATE looper_handler)
 
+# 6. BlockingQueue 单元测试 (新增)
+add_executable(BlockingQueue_test BlockingQueue_test.cpp)
+target_link_libraries(BlockingQueue_test PRIVATE looper_handler GTest::Main)
+gtest_add_tests(TARGET BlockingQueue_test)
+
 # 
 # ctest -C Debug -V 
 
@@ -82,3 +87,5 @@ target_link_libraries(main_test PRIVATE looper_handler)
 # ; 以及是否有不必要的代码, 如果有不必要的代码请说明
 # ; 以及是否有不必要的注释, 如果有不必要的注释请说明
 # ;检查 c++ 版本是否足够健壮, 可用于生产环境, 如果不够健壮请说明
+
+# 为 BlockingQueue 添加测试代码, 覆盖全部函数和所有可能的情况

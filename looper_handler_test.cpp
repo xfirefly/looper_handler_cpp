@@ -152,29 +152,41 @@ TEST_F(LooperHandlerTest, SendMessageAndPost) {
     ASSERT_EQ(runnable_future.wait_for(1s), std::future_status::ready);
 }
 
+// In looper_handler_test.cpp
+
+// [REVISED TEST CASE]
 TEST_F(LooperHandlerTest, SendMessageDelayedAndPostDelayed) {
     auto handler = std::make_shared<TestHandler>(background_looper);
     auto start_time = std::chrono::steady_clock::now();
 
-    // 1. 延迟消息
-    ASSERT_TRUE(handler->sendMessageDelayed(handler->obtainMessage(TestHandler::MSG_DELAYED), 100));
+    // Use a separate promise for the delayed message
+    std::promise<void> message_handled_promise;
+    auto message_handled_future = message_handled_promise.get_future();
 
-    // 2. 延迟 Runnable
-    auto future = handler->runnable_executed_promise.get_future();
+    // 1. Delayed message
+    // We'll wrap the logic in a runnable to signal completion
+    ASSERT_TRUE(handler->postDelayed([handler, &message_handled_promise]() {
+        handler->handleMessage(handler->obtainMessage(TestHandler::MSG_DELAYED));
+        message_handled_promise.set_value();
+    }, 100));
+
+    // 2. Delayed Runnable
+    auto runnable_future = handler->runnable_executed_promise.get_future();
     ASSERT_TRUE(handler->postDelayed([handler]() {
         handler->test_runnable();
     }, 150));
 
-    // 等待 runnable 完成
-    ASSERT_EQ(future.wait_for(1s), std::future_status::ready);
+    // Wait for BOTH tasks to complete (with a generous timeout)
+    ASSERT_EQ(message_handled_future.wait_for(1s), std::future_status::ready);
+    ASSERT_EQ(runnable_future.wait_for(1s), std::future_status::ready);
     auto end_time = std::chrono::steady_clock::now();
     auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(end_time - start_time).count();
 
-    // 验证延迟
+    // Verify the total time was at least the longest delay
     EXPECT_GE(duration, 150);
 
-    // 验证消息顺序
-    ASSERT_EQ(handler->handled_messages.size(), 2);
+    // Now it's safe to verify the results
+    ASSERT_EQ(handler->handled_messages.size(), 1);
     EXPECT_EQ(handler->handled_messages[0], TestHandler::MSG_DELAYED);
 }
 

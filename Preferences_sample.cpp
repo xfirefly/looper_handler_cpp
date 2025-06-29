@@ -111,7 +111,7 @@ int main() {
     editor2->putBool("is_premium_member", false);
 
     // apply() 是异步保存，它会立即返回，并在后台线程中写入文件
-    editor2->apply();
+  
     std::cout << "apply() returned immediately." << std::endl;
     
     // 等待一小会儿，让后台线程有时间完成写入

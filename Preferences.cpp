@@ -321,43 +321,6 @@ bool Preferences::Editor::commit() {
     }
     return mPrefs.saveToFile(dataToWrite, modifications_copy);
 }
-
-// 将 writerThread 和 once_flag 作为静态变量，保证它们在整个程序中是唯一的。
-static std::unique_ptr<WorkerThread> g_writerThread;
-static std::once_flag g_writerThreadOnceFlag;
-
-void Preferences::Editor::apply() {
-    std::map<std::string, std::any> dataToWrite;
-    std::map<std::string, std::any> modifications_copy = mModifications;
-    {
-        std::lock_guard<std::mutex> lock(mPrefs.mMutex);
-        if (mClearRequest) {
-            mPrefs.mData.clear();
-        }
-        for (const auto& mod : mModifications) {
-            if (mod.second.has_value()) {
-                mPrefs.mData[mod.first] = mod.second;
-            }
-            else {
-                mPrefs.mData.erase(mod.first);
-            }
-        }
-        dataToWrite = mPrefs.mData;
-    }
-
-    // 使用 std::call_once 来确保后台线程只被创建和启动一次
-    std::call_once(g_writerThreadOnceFlag, []() {
-        g_writerThread = std::make_unique<WorkerThread>("PreferencesWriter");
-        g_writerThread->start();
-    });
-
-    // 现在可以安全地使用 g_writerThread
-    if (g_writerThread) {
-        g_writerThread->post([prefs = &mPrefs, data = std::move(dataToWrite), mods = std::move(modifications_copy)]() {
-            prefs->saveToFile(data, mods);
-        });
-    }
-}
-
+ 
 
 } // namespace core

@@ -44,7 +44,7 @@ public:
         Editor& remove(const std::string& key);
         Editor& clear();
         bool commit();
-        void apply();
+     
 
         friend class Preferences;
         Editor(Preferences& prefs);

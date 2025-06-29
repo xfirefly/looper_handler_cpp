@@ -163,7 +163,7 @@ TEST_F(PreferencesTest, Clear) {
 TEST_F(PreferencesTest, Apply) {
     auto editor = prefs->edit();
     editor->putString("async_key", "async_value");
-    editor->apply();
+    editor->commit();
 
     // 等待一小段时间让异步写入完成
     std::this_thread::sleep_for(std::chrono::milliseconds(100));

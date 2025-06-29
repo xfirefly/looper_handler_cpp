@@ -57,9 +57,7 @@ bool WorkerThread::finish() {
     if (!mWorkerHandler) {
         return false;
     }
-    // 移除所有未执行的任务
-	mWorkerHandler->removeCallbacks();
-        
+
     // 提交一个特殊的任务来停止 Looper
     // 这是最优雅的关闭方式，因为它能确保所有在它之前的任务都执行完毕
     return mWorkerHandler->post([this]() {

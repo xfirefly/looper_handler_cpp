@@ -64,5 +64,15 @@ bool WorkerThread::finish() {
         this->quit();
     });
 }
+ 
+bool WorkerThread::finishNow() {
+    if (!mWorkerHandler) {
+        return false;
+    }
+    
+    return mWorkerHandler->postAtFrontOfQueue([this]() {
+        this->quit();
+    });
+}
 
 } // namespace core

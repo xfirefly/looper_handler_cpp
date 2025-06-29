@@ -1,4 +1,4 @@
-#include "looper_handler.h" // Include the header first
+ï»¿#include "looper_handler.h" // Include the header first
 
 #include <iostream> // For std::cout, std::cerr (used in implementations and main)
 #include <algorithm> // for std::find_if, std::sort, std::remove_if, std::upper_bound (used in MessageQueue impl)
@@ -55,24 +55,44 @@ namespace core {
 
         msg.when = when;
         // Insert message sorted by 'when'
-        // Ê¹ÓÃ std::upper_bound ¶ø²»ÊÇ¼òµ¥µÄ push_back£¬ÊÇÎªÁËÎ¬³ÖÏûÏ¢¶ÓÁĞµÄÊ±¼äË³Ğò¡£
-        // ÕâÑù£¬`next()` ·½·¨×ÜÊÇ¿ÉÒÔÖ»¿´¶ÓÁĞµÄÍ·²¿£¬À´È·¶¨ÏÂÒ»ÌõĞèÒª´¦ÀíµÄÏûÏ¢ÒÔ¼°ĞèÒªµÈ´ı¶à¾Ã¡£
-        // ÕâÊÇÒ»ÖÖ¿Õ¼ä»»Ê±¼äµÄÓÅ»¯£¬±ÜÃâÁËÔÚ `next()` ÖĞ±éÀúÕû¸ö¶ÓÁĞÀ´Ñ°ÕÒ×îÔçµÄÏûÏ¢¡£
+        // ä½¿ç”¨ std::upper_bound è€Œä¸æ˜¯ç®€å•çš„ push_backï¼Œæ˜¯ä¸ºäº†ç»´æŒæ¶ˆæ¯é˜Ÿåˆ—çš„æ—¶é—´é¡ºåºã€‚
+        // è¿™æ ·ï¼Œ`next()` æ–¹æ³•æ€»æ˜¯å¯ä»¥åªçœ‹é˜Ÿåˆ—çš„å¤´éƒ¨ï¼Œæ¥ç¡®å®šä¸‹ä¸€æ¡éœ€è¦å¤„ç†çš„æ¶ˆæ¯ä»¥åŠéœ€è¦ç­‰å¾…å¤šä¹…ã€‚
+        // è¿™æ˜¯ä¸€ç§ç©ºé—´æ¢æ—¶é—´çš„ä¼˜åŒ–ï¼Œé¿å…äº†åœ¨ `next()` ä¸­éå†æ•´ä¸ªé˜Ÿåˆ—æ¥å¯»æ‰¾æœ€æ—©çš„æ¶ˆæ¯ã€‚
+        
         auto it = std::upper_bound(mMessages.begin(), mMessages.end(), msg,
             [](const Message& a, const Message& b) {
                 return a.when < b.when;
             });
         mMessages.insert(it, std::move(msg));
 
-        // ÀíÂÛÉÏ£¬Ö»ÓĞµ±²åÈëµÄÏûÏ¢³ÉÎªĞÂµÄ¶ÓÊ×Ê±£¨¼´ËüÊÇ×îÔçĞèÒªÖ´ĞĞµÄÈÎÎñ£©£¬»òÕß¶ÓÁĞÖ®Ç°Îª¿ÕÊ±£¬
-        // ²Å¡°±ØĞë¡±»½ĞÑÏß³Ì¡£µ«ÊÇ£¬ÎªÁËÂß¼­¼ò»¯ºÍ½¡×³ĞÔ£¬ÕâÀïÑ¡Ôñ×ÜÊÇÍ¨Öª¡£
-        // ÕâÑù¿ÉÒÔ±ÜÃâ¸´ÔÓµÄÌõ¼şÅĞ¶Ï£¬ĞÔÄÜ¿ªÏúÔÚ¾ø´ó¶àÊıÇé¿öÏÂ¿ÉÒÔºöÂÔ²»¼Æ¡£
+        // ç†è®ºä¸Šï¼Œåªæœ‰å½“æ’å…¥çš„æ¶ˆæ¯æˆä¸ºæ–°çš„é˜Ÿé¦–æ—¶ï¼ˆå³å®ƒæ˜¯æœ€æ—©éœ€è¦æ‰§è¡Œçš„ä»»åŠ¡ï¼‰ï¼Œæˆ–è€…é˜Ÿåˆ—ä¹‹å‰ä¸ºç©ºæ—¶ï¼Œ
+        // æ‰â€œå¿…é¡»â€å”¤é†’çº¿ç¨‹ã€‚ä½†æ˜¯ï¼Œä¸ºäº†é€»è¾‘ç®€åŒ–å’Œå¥å£®æ€§ï¼Œè¿™é‡Œé€‰æ‹©æ€»æ˜¯é€šçŸ¥ã€‚
+        // è¿™æ ·å¯ä»¥é¿å…å¤æ‚çš„æ¡ä»¶åˆ¤æ–­ï¼Œæ€§èƒ½å¼€é”€åœ¨ç»å¤§å¤šæ•°æƒ…å†µä¸‹å¯ä»¥å¿½ç•¥ä¸è®¡ã€‚
         // Notify the looper thread only if the new message is at the front
         // or if the queue was previously potentially blocked waiting.
         // Simpler: always notify. More robust, performance impact usually negligible.
         // if (it == mMessages.begin()) { // Check if inserted at beginning
         mCondVar.notify_one();
         // }
+        return true;
+    }
+
+   
+    bool MessageQueue::enqueueMessageAtFront(Message&& msg) {
+        std::unique_lock<std::mutex> lock(mMutex);
+        if (mQuitting) {
+            std::cerr << "Warning: Enqueuing message on a quitting queue." << std::endl;
+            return false; // Don't enqueue if quitting
+        }
+
+        // è®¾ç½®æ—¶é—´ä¸ºå½“å‰ï¼Œä»¥ä¿æŒä¸€è‡´æ€§
+        msg.when = std::chrono::steady_clock::now();
+        // å…³é”®ï¼šä½¿ç”¨ push_front å°†æ¶ˆæ¯æ’å…¥åˆ°åŒç«¯é˜Ÿåˆ—çš„å¤´éƒ¨
+        mMessages.push_front(std::move(msg));
+
+        // å¿…é¡»å”¤é†’ Looperï¼Œå› ä¸ºå®ƒå¯èƒ½æ­£åœ¨ä¸ºä¸€ä¸ªå»¶è¿Ÿä»»åŠ¡è€Œä¼‘çœ ã€‚
+        // æ–°çš„é˜Ÿé¦–ä»»åŠ¡éœ€è¦ç«‹å³è¢«è¯„ä¼°ã€‚
+        mCondVar.notify_one();
         return true;
     }
 
@@ -107,12 +127,12 @@ namespace core {
                 nextPollTimeout = std::chrono::steady_clock::time_point::max();
             }
 
-            // `mCondVar.wait_until` »ò `mCondVar.wait` »áÔ­×ÓµØ½âËø»¥³âËø `mMutex` ²¢ÈÃÏß³Ì½øÈëĞİÃß¡£
-            // ÕâÑù×öÊÇÎªÁË±ÜÃâ CPU ¿Õ×ª£¬½ÚÊ¡×ÊÔ´¡£
-            // Ïß³Ì»á±»ÒÔÏÂÁ½ÖÖÇé¿öÖ®Ò»»½ĞÑ£º
-            // 1. `enqueueMessage` µ÷ÓÃÁË `mCondVar.notify_one()`£¬±íÊ¾ÓĞĞÂÏûÏ¢¡£
-            // 2. µÈ´ıÊ±¼ä´ïµ½ÁË `nextPollTimeout`£¬±íÊ¾¶ÓÊ×µÄÑÓ³ÙÏûÏ¢¿ÉÄÜµ½ÆÚÁË¡£
-            // »½ĞÑºó£¬Ïß³Ì»áÖØĞÂ»ñÈ¡Ëø£¬²¢´Ó `while(true)` µÄ¶¥²¿¿ªÊ¼ÏÂÒ»´ÎÑ­»·£¬ÖØĞÂÅĞ¶Ï×´Ì¬¡£
+            // `mCondVar.wait_until` æˆ– `mCondVar.wait` ä¼šåŸå­åœ°è§£é”äº’æ–¥é” `mMutex` å¹¶è®©çº¿ç¨‹è¿›å…¥ä¼‘çœ ã€‚
+            // è¿™æ ·åšæ˜¯ä¸ºäº†é¿å… CPU ç©ºè½¬ï¼ŒèŠ‚çœèµ„æºã€‚
+            // çº¿ç¨‹ä¼šè¢«ä»¥ä¸‹ä¸¤ç§æƒ…å†µä¹‹ä¸€å”¤é†’ï¼š
+            // 1. `enqueueMessage` è°ƒç”¨äº† `mCondVar.notify_one()`ï¼Œè¡¨ç¤ºæœ‰æ–°æ¶ˆæ¯ã€‚
+            // 2. ç­‰å¾…æ—¶é—´è¾¾åˆ°äº† `nextPollTimeout`ï¼Œè¡¨ç¤ºé˜Ÿé¦–çš„å»¶è¿Ÿæ¶ˆæ¯å¯èƒ½åˆ°æœŸäº†ã€‚
+            // å”¤é†’åï¼Œçº¿ç¨‹ä¼šé‡æ–°è·å–é”ï¼Œå¹¶ä» `while(true)` çš„é¡¶éƒ¨å¼€å§‹ä¸‹ä¸€æ¬¡å¾ªç¯ï¼Œé‡æ–°åˆ¤æ–­çŠ¶æ€ã€‚
             // Wait until the next message's time or until notified
             if (nextPollTimeout == std::chrono::steady_clock::time_point::max()) {
                 mCondVar.wait(lock); // Wait indefinitely
@@ -359,6 +379,12 @@ namespace core {
         if (!mQueue) return false;
         Message msg(std::move(r), shared_from_this()); // Create message with callback
         return mQueue->enqueueMessage(std::move(msg), uptimeMillis);
+    }
+ 
+    bool Handler::postAtFrontOfQueue(std::function<void()> r) {
+        if (!mQueue) return false;
+        Message msg(std::move(r), shared_from_this());
+        return mQueue->enqueueMessageAtFront(std::move(msg));
     }
 
     // --- Message Obtaining Methods --- (NEW IMPLEMENTATIONS)

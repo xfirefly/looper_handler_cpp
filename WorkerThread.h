@@ -60,6 +60,15 @@ public:
      */
     bool finish();
 
+    /**
+     * @brief 立即停止工作线程（在当前任务完成后）。
+     *
+     * 提交一个高优先级的退出消息到队列头部，跳过所有其他排队的任务。
+     * 当前正在执行的任务仍会完成。
+     * @return 如果停止消息成功发送，返回 true。
+     */
+    bool finishNow();
+        
 private:
     // 一个简单的内部 Handler，仅用于处理 std::function<void()> 任务
     class WorkerHandler : public Handler {

@@ -132,3 +132,44 @@ TEST_F(WorkerThreadTest, FinishAndDestruction) {
     // 验证前两个任务被执行了
     EXPECT_EQ(taskCount, 2);
 }
+
+
+// 测试 finishNow() 功能，它应该跳过排队的任务
+// 目标: 覆盖 finishNow()
+TEST_F(WorkerThreadTest, FinishNowSkipsQueuedTasks) {
+    std::atomic<int> task_execution_count = 0;
+    std::promise<void> first_task_started_promise;
+    auto first_task_started_future = first_task_started_promise.get_future();
+    std::promise<void> first_task_finished_promise;
+    auto first_task_finished_future = first_task_finished_promise.get_future();
+
+    workerThread->start();
+    auto looper = workerThread->getLooper();
+    ASSERT_NE(looper, nullptr);
+
+    // 1. 提交一个需要一些时间的任务（任务1）
+    workerThread->post([&]() {
+        first_task_started_promise.set_value();
+        std::this_thread::sleep_for(std::chrono::milliseconds(100));
+        task_execution_count++; // 只有这个任务应该被计数
+        first_task_finished_promise.set_value();
+    });
+
+    // 2. 提交一个普通任务，它不应该被执行（任务2）
+    workerThread->post([&]() {
+        task_execution_count = -1; // 如果这个任务执行了，测试会失败
+    });
+
+    // 3. 确保任务1已经开始执行
+    ASSERT_EQ(first_task_started_future.wait_for(std::chrono::seconds(1)), std::future_status::ready);
+    
+    // 4. 在任务1执行期间，调用 finishNow()
+    bool finish_posted = workerThread->finishNow();
+    ASSERT_TRUE(finish_posted);
+
+    // 5. 等待线程结束
+    workerThread->join();
+
+    // 6. 验证只有第一个任务被执行了
+    EXPECT_EQ(task_execution_count, 1);
+}

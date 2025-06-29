@@ -274,3 +274,37 @@ TEST_F(LooperHandlerTest, MessageSendToTarget) {
     ASSERT_EQ(future.wait_for(1s), std::future_status::ready);
     EXPECT_EQ(future.get(), background_looper->getThreadId());
 }
+
+
+// 测试将任务发布到队列前端
+TEST_F(LooperHandlerTest, PostAtFrontOfQueue) {
+    auto handler = std::make_shared<TestHandler>(background_looper);
+    std::vector<int> execution_order;
+    std::promise<void> tasks_done_promise;
+    auto tasks_done_future = tasks_done_promise.get_future();
+    int task_count = 0;
+
+    // 1. 提交一个普通的、延迟50ms的任务
+    handler->postDelayed([&]() {
+        execution_order.push_back(2); // 应该第二个执行
+        if (++task_count == 2) {
+            tasks_done_promise.set_value();
+        }
+    }, 50);
+
+    // 2. 立即提交一个高优先级的任务到队列前端
+    handler->postAtFrontOfQueue([&]() {
+        execution_order.push_back(1); // 应该第一个执行
+        if (++task_count == 2) {
+            tasks_done_promise.set_value();
+        }
+    });
+
+    // 3. 等待两个任务都完成
+    ASSERT_EQ(tasks_done_future.wait_for(1s), std::future_status::ready);
+
+    // 4. 验证执行顺序
+    ASSERT_EQ(execution_order.size(), 2);
+    EXPECT_EQ(execution_order[0], 1); // 验证高优先级任务先执行
+    EXPECT_EQ(execution_order[1], 2); // 验证普通任务后执行
+}

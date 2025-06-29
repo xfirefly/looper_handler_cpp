@@ -1,4 +1,4 @@
-#ifndef LOOPER_HANDLER_H
+﻿#ifndef LOOPER_HANDLER_H
 #define LOOPER_HANDLER_H
 
 #include <queue> // Included for completeness, though deque is used
@@ -64,6 +64,8 @@ namespace core {
 
         // Enqueues a message. Messages are sorted by their 'when' time.
         bool enqueueMessage(Message&& msg, std::chrono::steady_clock::time_point when);
+
+        bool enqueueMessageAtFront(Message&& msg);
 
         // Retrieves the next message. Blocks if the queue is empty or
         // the next message is scheduled for the future.
@@ -174,6 +176,12 @@ namespace core {
 
         // Posts a task to be run at a specific time.
         bool postAtTime(std::function<void()> r, std::chrono::steady_clock::time_point uptimeMillis);
+
+        /**
+         * @brief 提交一个任务到消息队列的最前端。
+         * 该任务将在当前正在执行的任务完成后立即执行，优先于所有其他排队的任务。
+         */
+        bool postAtFrontOfQueue(std::function<void()> r);
 
         // --- Message Obtaining Methods ---  
     // Returns a new Message from the global message pool. More efficient than

@@ -48,6 +48,9 @@ include(GoogleTest)
 
 # --- 可执行文件和测试定义 ---
 
+add_executable(LocalBroadcastManager_test LocalBroadcastManager_test.cpp) 
+target_link_libraries(LocalBroadcastManager_test PRIVATE looper_handler GTest::Main)
+gtest_add_tests(TARGET LocalBroadcastManager_test)
 
 # 1. Preferences 单元测试
 add_executable(Preferences_test Preferences_test.cpp)

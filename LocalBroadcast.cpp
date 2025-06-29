@@ -21,6 +21,18 @@ namespace core {
         return instance;
     }
 
+    LocalBroadcastManager::LocalBroadcastManager() {
+        mWorkerThread = std::make_unique<core::WorkerThread>("LocalBroadcastThread");
+        mWorkerThread->start();
+    }
+ 
+    LocalBroadcastManager::~LocalBroadcastManager() {
+        if (mWorkerThread) {
+            mWorkerThread->finish();
+            mWorkerThread->join();
+        }
+    }
+
     // [FIX 1] registerReceiver 实现更新
     void LocalBroadcastManager::registerReceiver(std::shared_ptr<BroadcastReceiver> receiver, const IntentFilter& filter) {
         if (!receiver) return;
@@ -89,7 +101,11 @@ namespace core {
             if (it != m_actions.end()) {
                 receiversToNotify = it->second;
             }
-            std::cerr << "Action: " << action << " receiver size:" << receiversToNotify.size() << std::endl;                
+        }
+
+        if (!mWorkerThread) {
+            std::cerr << "ERROR: WorkerThread is not available in LocalBroadcastManager." << std::endl;
+            return;
         }
 
         for (const auto& weak_receiver : receiversToNotify) {
@@ -100,26 +116,28 @@ namespace core {
             // - 如果原始对象已经被销毁，它会返回一个空的 `shared_ptr`。
             // 通过 `if (auto shared_receiver = ...)`，我们能原子地、安全地检查对象的存活状态
             // 并获取其所有权。这可以防止在多线程环境中，刚刚检查完对象还存在，但在调用其方法前，
-            // 对象就被另一个线程销毁了（即“野指针”问题）。
-            if (auto shared_receiver = weak_receiver.lock()) {
-                // [FIX 2] 异常安全：隔离每个 onReceive 的调用
-                try {
-                    shared_receiver->onReceive(intent);
-                }
-                catch (const std::exception& e) {
-                    std::cerr << "ERROR: An exception was thrown in a BroadcastReceiver: "
-                        << e.what() << std::endl;
-                }
-                catch (...) {
-                    std::cerr << "ERROR: An unknown exception was thrown in a BroadcastReceiver."
-                        << std::endl;
-                }
+            // 对象就被另一个线程销毁了（即“野指针”问题）。            
+            if (auto shared_receiver = weak_receiver.lock()) {                
+                // 将 onReceive 调用 post到工作线程
+                mWorkerThread->post([shared_receiver, intent]() {
+                    try {
+                        // 这个 lambda 表达式中的代码将在 WorkerThread 中执行
+                        shared_receiver->onReceive(intent);
+                    }
+                    catch (const std::exception& e) {
+                        std::cerr << "ERROR: An exception was thrown in a BroadcastReceiver (executed on worker thread): "
+                            << e.what() << std::endl;
+                    }
+                    catch (...) {
+                        std::cerr << "ERROR: An unknown exception was thrown in a BroadcastReceiver (executed on worker thread)."
+                            << std::endl;
+                    }
+                });
             }
-            // 如果 weak_receiver.lock() 失败，说明对象已被销毁，我们什么都不做，安全地跳过。
         }
-    }
+    }    
 }
-
+ 
 
 #if 0
 #include "LocalBroadcast.h"

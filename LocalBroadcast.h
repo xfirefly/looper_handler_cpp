@@ -6,7 +6,9 @@
 #include <map>
 #include <any>
 #include <mutex>
-#include <memory> // 为了 std::shared_ptr 和 std::weak_ptr
+#include <memory>
+
+#include "WorkerThread.h" // 包含 WorkerThread
 
 namespace core {
 
@@ -15,9 +17,7 @@ namespace core {
     class BroadcastReceiver;
     class IntentFilter;
 
-    // =================================================================================
-    // Intent, BroadcastReceiver, IntentFilter (这几个类保持不变)
-    // =================================================================================
+ 
     class Intent {
     public:
         Intent(std::string_view action);
@@ -58,29 +58,28 @@ namespace core {
 
 
     // =================================================================================
-    // LocalBroadcastManager - 核心管理类 (健壮版本)
+    // LocalBroadcastManager - 核心管理类 (已集成 WorkerThread)
     // =================================================================================
     class LocalBroadcastManager final {
     public:
         static LocalBroadcastManager& getInstance();
+        ~LocalBroadcastManager(); // 添加析构函数以管理线程
         LocalBroadcastManager(const LocalBroadcastManager&) = delete;
         LocalBroadcastManager& operator=(const LocalBroadcastManager&) = delete;
 
-        // [FIX 1] API 变更: 接收 shared_ptr
         void registerReceiver(std::shared_ptr<BroadcastReceiver> receiver, const IntentFilter& filter);
-
-        // [FIX 1] API 变更: 接收 shared_ptr
         void unregisterReceiver(const std::shared_ptr<BroadcastReceiver>& receiver);
-
         void sendBroadcast(const Intent& intent);
 
     private:
-        LocalBroadcastManager() = default;
+        LocalBroadcastManager(); // 构造函数设为私有
 
         std::mutex m_mutex;
-        // [FIX 1] 内部存储变更为 weak_ptr
         std::map<std::string, std::vector<std::weak_ptr<BroadcastReceiver>>> m_actions;
-        std::map<BroadcastReceiver*, std::vector<std::string>> m_receivers; // key 仍然是裸指针，仅作为唯一标识符
+        std::map<BroadcastReceiver*, std::vector<std::string>> m_receivers;
+        
+        // 用于执行 onReceive 回调的工作线程
+        std::unique_ptr<core::WorkerThread> mWorkerThread; 
     };
 
 }

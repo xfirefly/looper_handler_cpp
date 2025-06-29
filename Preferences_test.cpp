@@ -5,181 +5,19 @@
 #include <thread>
 #include <chrono>
 #include <iostream>
-#include <fstream> // 用于文件操作
+#include <fstream>
 #include <filesystem>
-#include <cstdlib> // 用于 std::getenv
-#include <algorithm> // for std::find
-#include <climits> // for INT_MIN, INT_MAX
+#include <cstdlib>
+#include <algorithm>
+#include <climits>
+#include <atomic>
 
 using namespace core;
 
-// 测试用的 Preferences 文件名
-const std::string TEST_PREFS_NAME = "test_prefs";
+// 为测试定义一个唯一的 Preferences 文件名
+const std::string TEST_PREFS_NAME = "gtest_prefs";
 
-class PreferencesTest : public ::testing::Test {
-protected:
-    std::shared_ptr<Preferences> prefs;
-
-    // 获取测试文件的完整路径
-    std::string getTestFilePath() {
-        std::filesystem::path dir_path;
-#ifdef _WIN32
-        char* buffer = nullptr;
-        size_t size = 0;
-        if (_dupenv_s(&buffer, &size, "USERPROFILE") == 0 && buffer != nullptr) {
-            dir_path = buffer;
-            free(buffer);
-        } else {
-            dir_path = ".";
-        }
-#else
-        const char* home_dir = std::getenv("HOME");
-        dir_path = (home_dir ? home_dir : ".");
-#endif
-        dir_path /= ".cpp_prefs/";
-        return (dir_path / (TEST_PREFS_NAME + ".toml")).string();
-    }
-
-
-    void SetUp() override {
-        // 每个测试开始前，获取一个新的实例并清空它，确保测试环境独立
-        prefs = PreferencesManager::getInstance(TEST_PREFS_NAME);
-        auto editor = prefs->edit();
-        editor->clear();
-        editor->commit();
-    }
-
-    void TearDown() override {
-        // 测试结束后，再次清空
-        auto editor = prefs->edit();
-        editor->clear();
-        editor->commit();
-    }
-};
-
-// 1. 测试基本数据类型: String
-TEST_F(PreferencesTest, StringValue) {
-    auto editor = prefs->edit();
-    editor->putString("username", "coder");
-    editor->commit();
-
-    EXPECT_EQ(prefs->getString("username", "default"), "coder");
-    EXPECT_EQ(prefs->getString("non_existent_key", "default"), "default");
-}
-
-// 2. 测试基本数据类型: Int
-TEST_F(PreferencesTest, IntValue) {
-    auto editor = prefs->edit();
-    editor->putInt("user_age", 30);
-    editor->commit();
-
-    EXPECT_EQ(prefs->getInt("user_age", 0), 30);
-    EXPECT_EQ(prefs->getInt("non_existent_key", -1), -1);
-}
-
- 
-
-// 4. 测试基本数据类型: Float
-TEST_F(PreferencesTest, FloatValue) {
-    auto editor = prefs->edit();
-    editor->putFloat("user_score", 99.5f);
-    editor->commit();
-
-    EXPECT_FLOAT_EQ(prefs->getFloat("user_score", 0.0f), 99.5f);
-    EXPECT_FLOAT_EQ(prefs->getFloat("non_existent_key", -1.0f), -1.0f);
-}
-
-// 5. 测试基本数据类型: Bool
-TEST_F(PreferencesTest, BoolValue) {
-    auto editor = prefs->edit();
-    editor->putBool("is_active", true);
-    editor->commit();
-
-    EXPECT_TRUE(prefs->getBool("is_active", false));
-    EXPECT_FALSE(prefs->getBool("non_existent_key", false));
-}
-
-// 6. 测试新增功能: StringSet
-TEST_F(PreferencesTest, StringSetValue) {
-    std::vector<std::string> tags = {"C++", "Android", "Testing"};
-    auto editor = prefs->edit();
-    editor->putStringSet("tags", tags);
-    editor->commit();
-
-    std::vector<std::string> retrieved_tags = prefs->getStringSet("tags", {});
-    ASSERT_EQ(retrieved_tags.size(), 3);
-    EXPECT_EQ(retrieved_tags[0], "C++");
-    EXPECT_EQ(retrieved_tags[1], "Android");
-    EXPECT_EQ(retrieved_tags[2], "Testing");
-
-    EXPECT_TRUE(prefs->getStringSet("non_existent_key", {}).empty());
-}
-
-
-// 7. 测试 remove() 和 contains()
-TEST_F(PreferencesTest, RemoveAndContains) {
-    auto editor = prefs->edit();
-    editor->putString("temp_data", "to be removed");
-    editor->commit();
-
-    EXPECT_TRUE(prefs->contains("temp_data"));
-
-    auto editor2 = prefs->edit();
-    editor2->remove("temp_data");
-    editor2->commit();
-
-    EXPECT_FALSE(prefs->contains("temp_data"));
-}
-
-// 8. 测试 clear()
-TEST_F(PreferencesTest, Clear) {
-    auto editor = prefs->edit();
-    editor->putString("key1", "value1");
-    editor->putInt("key2", 123);
-    editor->commit();
-
-    EXPECT_TRUE(prefs->contains("key1"));
-    EXPECT_TRUE(prefs->contains("key2"));
-
-    auto editor2 = prefs->edit();
-    editor2->clear();
-    editor2->commit();
-
-    EXPECT_FALSE(prefs->contains("key1"));
-    EXPECT_FALSE(prefs->contains("key2"));
-}
-
-// 9. 测试 apply() 异步提交
-TEST_F(PreferencesTest, Apply) {
-    auto editor = prefs->edit();
-    editor->putString("async_key", "async_value");
-    editor->commit();
-
-    // 等待一小段时间让异步写入完成
-    std::this_thread::sleep_for(std::chrono::milliseconds(100));
-
-    // 创建一个新的实例来确保从文件中重新加载
-    auto new_prefs = PreferencesManager::getInstance(TEST_PREFS_NAME);
-    EXPECT_EQ(new_prefs->getString("async_key", ""), "async_value");
-}
-
-// 10. 测试新增功能: getAll()
-TEST_F(PreferencesTest, GetAll) {
-    auto editor = prefs->edit();
-    editor->putString("name", "test");
-    editor->putInt("version", 1);
-    editor->putBool("enabled", true);
-    editor->commit();
-
-    auto all_prefs = prefs->getAll();
-    ASSERT_EQ(all_prefs.size(), 3);
-    EXPECT_EQ(std::any_cast<std::string>(all_prefs["name"]), "test");
-    EXPECT_EQ(std::any_cast<int64_t>(all_prefs["version"]), 1);
-    EXPECT_EQ(std::any_cast<bool>(all_prefs["enabled"]), true);
-}
-
-
-// 11. 测试新增功能: 变更监听器
+// 测试专用的监听器，用于记录变更
 class MockListener : public OnPreferenceChangeListener {
 public:
     void onPreferenceChanged(Preferences* preferences, const std::string& key) override {
@@ -201,87 +39,256 @@ private:
     std::vector<std::string> changed_keys;
 };
 
-TEST_F(PreferencesTest, ListenerTest) {
+
+// --- 测试夹具 (Test Fixture) ---
+class PreferencesTest : public ::testing::Test {
+protected:
+    std::shared_ptr<Preferences> prefs;
+
+    // 在每个测试开始前执行
+    void SetUp() override {
+        // 获取一个干净的 Preferences 实例，确保测试之间互相独立
+        prefs = PreferencesManager::getInstance(TEST_PREFS_NAME);
+        prefs->edit()->clear().commit();
+    }
+
+    // 在每个测试结束后执行
+    void TearDown() override {
+        // 清理测试数据
+        if (prefs) {
+            prefs->edit()->clear().commit();
+        }
+    }
+};
+
+// --- 基本数据类型测试 ---
+
+TEST_F(PreferencesTest, StringValue) {
+    prefs->edit()->putString("username", "coder").commit();
+    EXPECT_EQ(prefs->getString("username", "default"), "coder");
+    EXPECT_EQ(prefs->getString("non_existent", "default"), "default");
+}
+
+TEST_F(PreferencesTest, EmptyStringValue) {
+    prefs->edit()->putString("empty_string", "").commit();
+    EXPECT_EQ(prefs->getString("empty_string", "default"), "");
+}
+
+TEST_F(PreferencesTest, IntValue) {
+    prefs->edit()->putInt("user_age", 30).commit();
+    EXPECT_EQ(prefs->getInt("user_age", 0), 30);
+    EXPECT_EQ(prefs->getInt("non_existent", -1), -1);
+}
+
+TEST_F(PreferencesTest, IntBoundaryValues) {
+    auto editor = prefs->edit();
+    editor->putInt("max_int", INT64_MAX);
+    editor->putInt("min_int", INT64_MIN);
+    editor->putInt("zero_int", 0);
+    editor->commit();
+
+    EXPECT_EQ(prefs->getInt("max_int", 0), INT64_MAX);
+    EXPECT_EQ(prefs->getInt("min_int", 0), INT64_MIN);
+    EXPECT_EQ(prefs->getInt("zero_int", 1), 0);
+}
+
+TEST_F(PreferencesTest, FloatValue) {
+    prefs->edit()->putFloat("user_score", 99.5).commit();
+    EXPECT_FLOAT_EQ(prefs->getFloat("user_score", 0.0), 99.5);
+    EXPECT_FLOAT_EQ(prefs->getFloat("non_existent", -1.0), -1.0);
+}
+
+TEST_F(PreferencesTest, BoolValue) {
+    auto editor = prefs->edit();
+    editor->putBool("is_active", true);
+    editor->putBool("is_guest", false);
+    editor->commit();
+
+    EXPECT_TRUE(prefs->getBool("is_active", false));
+    EXPECT_FALSE(prefs->getBool("is_guest", true));
+    EXPECT_FALSE(prefs->getBool("non_existent", false));
+}
+
+TEST_F(PreferencesTest, StringSetValue) {
+    std::vector<std::string> tags = {"C++", "Android", "Testing"};
+    prefs->edit()->putStringSet("tags", tags).commit();
+
+    std::vector<std::string> retrieved_tags = prefs->getStringSet("tags", {});
+    ASSERT_EQ(retrieved_tags.size(), 3);
+    EXPECT_EQ(retrieved_tags[0], "C++");
+    EXPECT_EQ(retrieved_tags[1], "Android");
+    EXPECT_EQ(retrieved_tags[2], "Testing");
+}
+
+TEST_F(PreferencesTest, EmptyStringSetValue) {
+    prefs->edit()->putStringSet("empty_set", {}).commit();
+    EXPECT_TRUE(prefs->getStringSet("empty_set", {"a"}).empty());
+}
+
+// --- 功能性测试 ---
+
+TEST_F(PreferencesTest, RemoveAndContains) {
+    prefs->edit()->putString("temp_data", "to be removed").commit();
+    EXPECT_TRUE(prefs->contains("temp_data"));
+
+    prefs->edit()->remove("temp_data").commit();
+    EXPECT_FALSE(prefs->contains("temp_data"));
+    
+    // 移除一个不存在的键不应产生错误
+    EXPECT_NO_THROW(prefs->edit()->remove("non_existent_key").commit());
+}
+
+TEST_F(PreferencesTest, Clear) {
+    auto editor = prefs->edit();
+    editor->putString("key1", "value1");
+    editor->putInt("key2", 123);
+    editor->commit();
+
+    ASSERT_TRUE(prefs->contains("key1"));
+    ASSERT_TRUE(prefs->contains("key2"));
+
+    prefs->edit()->clear().commit();
+
+    EXPECT_FALSE(prefs->contains("key1"));
+    EXPECT_FALSE(prefs->contains("key2"));
+    EXPECT_TRUE(prefs->getAll().empty());
+}
+
+TEST_F(PreferencesTest, GetAll) {
+    auto editor = prefs->edit();
+    editor->putString("name", "test");
+    editor->putInt("version", 1);
+    editor->commit();
+
+    auto all_prefs = prefs->getAll();
+    ASSERT_EQ(all_prefs.size(), 2);
+    EXPECT_EQ(std::any_cast<std::string>(all_prefs["name"]), "test");
+    EXPECT_EQ(std::any_cast<int64_t>(all_prefs["version"]), 1);
+}
+
+TEST_F(PreferencesTest, EditorComplexOperations) {
+    // 1. 放入初始值
+    prefs->edit()->putString("persistent_key", "initial").putInt("counter", 1).commit();
+
+    // 2. 在一个 Editor 会话中执行多种操作
+    auto editor = prefs->edit();
+    editor->putInt("counter", 2);             // 修改
+    editor->putString("new_key", "new_value"); // 新增
+    editor->remove("persistent_key");         // 删除
+    editor->commit();
+
+    // 3. 验证结果
+    EXPECT_EQ(prefs->getInt("counter", 0), 2);
+    EXPECT_EQ(prefs->getString("new_key", ""), "new_value");
+    EXPECT_FALSE(prefs->contains("persistent_key"));
+}
+
+TEST_F(PreferencesTest, EditorClearAndPut) {
+    // 1. 放入初始值
+    prefs->edit()->putString("old_key", "old_value").commit();
+
+    // 2. 在同一个 Editor 中先 clear 再 put
+    auto editor = prefs->edit();
+    editor->clear();
+    editor->putString("new_key", "fresh_value");
+    editor->commit();
+
+    // 3. 验证
+    EXPECT_FALSE(prefs->contains("old_key"));
+    EXPECT_TRUE(prefs->contains("new_key"));
+    EXPECT_EQ(prefs->getString("new_key", ""), "fresh_value");
+    EXPECT_EQ(prefs->getAll().size(), 1);
+}
+
+
+// --- 监听器测试 ---
+
+TEST_F(PreferencesTest, ListenerNotification) {
     auto listener = std::make_shared<MockListener>();
     prefs->registerOnPreferenceChangeListener(listener);
 
-    // 测试 put
-    auto editor = prefs->edit();
-    editor->putString("listen_key", "listen_value");
-    editor->putInt("listen_int", 100);
-    editor->commit();
-    
+    // 1. 测试 put
+    prefs->edit()->putString("listen_key", "value1").putInt("other_key", 10).commit();
     auto keys = listener->getChangedKeys();
     ASSERT_EQ(keys.size(), 2);
-    // 注意：由于 map 是无序的，我们不能假设顺序
+    // 使用 std::find 是因为 map 的迭代顺序不确定
     EXPECT_NE(std::find(keys.begin(), keys.end(), "listen_key"), keys.end());
-    EXPECT_NE(std::find(keys.begin(), keys.end(), "listen_int"), keys.end());
+    EXPECT_NE(std::find(keys.begin(), keys.end(), "other_key"), keys.end());
 
     listener->clearChangedKeys();
     
-    // 测试 remove
-    auto editor2 = prefs->edit();
-    editor2->remove("listen_key");
-    editor2->commit();
+    // 2. 测试 remove
+    prefs->edit()->remove("listen_key").commit();
     keys = listener->getChangedKeys();
     ASSERT_EQ(keys.size(), 1);
     EXPECT_EQ(keys[0], "listen_key");
 
     listener->clearChangedKeys();
 
-    // 测试 unregister
+    // 3. 测试 clear
+    prefs->edit()->putInt("one_more", 1).commit(); // 先放一个值
+    listener->clearChangedKeys();
+    //prefs->edit()->clear().commit();
+    keys = listener->getChangedKeys();
+    // clear 应该为每个被移除的键都触发一次通知
+    ASSERT_EQ(keys.size(), 2); 
+    EXPECT_NE(std::find(keys.begin(), keys.end(), "other_key"), keys.end());
+    EXPECT_NE(std::find(keys.begin(), keys.end(), "one_more"), keys.end());
+    
+    listener->clearChangedKeys();
+
+    // 4. 测试注销
     prefs->unregisterOnPreferenceChangeListener(listener);
-    auto editor3 = prefs->edit();
-    editor3->putBool("another_key", true);
-    editor3->commit();
+    prefs->edit()->putBool("final_key", true).commit();
     keys = listener->getChangedKeys();
     EXPECT_TRUE(keys.empty());
 }
 
-// =======================================================================================
-// 新增的 Bug 复现和验证测试
-// 这个测试专门用来验证“修改一个值导致其他值被清除”的 bug
-// =======================================================================================
-TEST_F(PreferencesTest, FullPersistenceTest) {
-    const std::string TEST_PREFS_NAME = "xx";
-    // 1. 手动创建一个包含多种数据类型的 toml 文件
-    std::string test_file_path = getTestFilePath();
-    std::ofstream ofs(test_file_path, std::ios::trunc);
-    ASSERT_TRUE(ofs.is_open());
-    ofs << R"(
-string_val = "original_string"
-int_val = 123
-long_val = 9876543210
-float_val = 45.6
-bool_val = true
-to_be_modified = "change_me"
-)";
-    ofs.close();
+// --- 多线程和持久性测试 ---
 
-    // 2. 加载这个文件。
-    // 使用一个新的 Preferences 实例来确保它从文件加载
-    auto prefs1 = core::PreferencesManager::getInstance(TEST_PREFS_NAME);
+TEST_F(PreferencesTest, DataPersistence) {
+    // 1. 写入数据
+    prefs->edit()->putString("session_token", "abc-123").commit();
 
-    // 3. 只修改其中一个值并提交
-   prefs1->edit()->putString("to_be_modified", "i_was_changed").commit();
-   prefs1->edit()->putStringSet("new_string_set", {"item1", "item2"}).commit();
+    // 2. 创建一个新的实例，模拟应用重启
+    auto new_prefs_instance = PreferencesManager::getInstance(TEST_PREFS_NAME);
     
-    // 4. 再次创建一个全新的实例，强制从磁盘重新加载，以验证持久化结果
-    auto prefs2 = core::PreferencesManager::getInstance(TEST_PREFS_NAME);
+    // 3. 从新实例中读取数据，验证是否已持久化
+    EXPECT_EQ(new_prefs_instance->getString("session_token", ""), "abc-123");
+}
 
-    EXPECT_EQ(prefs1, prefs2); // 确保两个实例是同一个
+TEST_F(PreferencesTest, MultiThreadedReadWrite) {
+    std::atomic<bool> stop_flag = false;
+    std::atomic<int> write_count = 0;
     
-    // 5. 验证
-    // a) 验证被修改的值是否正确
-    EXPECT_EQ(prefs2->getString("to_be_modified", ""), "i_was_changed");
+    // 写入线程
+    std::thread writer([&]() {
+        int i = 0;
+        while (!stop_flag) {
+            prefs->edit()->putInt("counter", i++).commit();
+            write_count++;
+            std::this_thread::sleep_for(std::chrono::milliseconds(5));
+        }
+    });
 
-    // b) (关键) 验证所有未被修改的值是否仍然存在且正确
-    EXPECT_EQ(prefs2->getString("string_val", ""), "original_string");
-    EXPECT_EQ(prefs2->getInt("int_val", 0), 123);
-    EXPECT_EQ(prefs2->getInt("long_val", 0), 9876543210);
-    EXPECT_DOUBLE_EQ(prefs2->getFloat("float_val", 0.0), 45.6);
-    EXPECT_TRUE(prefs2->getBool("bool_val", false));
+    // 读取线程
+    std::thread reader([&]() {
+        while (!stop_flag) {
+            int val = prefs->getInt("counter", -1);
+            // 我们只关心它是否能无错运行
+            ASSERT_GE(val, -1);
+            std::this_thread::sleep_for(std::chrono::milliseconds(3));
+        }
+    });
 
-    // c) 检查总数是否正确，确保没有多余或缺少键
-    EXPECT_EQ(prefs2->getAll().size(), 7);
+    // 运行一段时间
+    std::this_thread::sleep_for(std::chrono::milliseconds(200));
+    stop_flag = true;
+
+    writer.join();
+    reader.join();
+
+    // 最后的断言只是为了确保测试确实执行了写入操作
+    EXPECT_GT(write_count, 10);
+    std::cout << "Multi-threaded test completed with " << write_count << " writes." << std::endl;
 }

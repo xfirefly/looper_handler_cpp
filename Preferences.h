@@ -36,8 +36,7 @@ public:
         Editor(const Editor&) = delete;
         Editor& operator=(const Editor&) = delete;
         Editor& putString(const std::string& key, const std::string& value);
-        Editor& putInt(const std::string& key, int value);
-        Editor& putLong(const std::string& key, long long value); // 新增
+        Editor& putInt(const std::string& key, int64_t value);
         Editor& putFloat(const std::string& key, double value);
         Editor& putBool(const std::string& key, bool value);
         Editor& putStringSet(const std::string& key, const std::vector<std::string>& value); // 新增
@@ -58,8 +57,7 @@ public:
     Preferences& operator=(const Preferences&) = delete;
 
     std::string getString(const std::string& key, const std::string& defValue) const;
-    int getInt(const std::string& key, int defValue) const;
-    long long getLong(const std::string& key, long long defValue) const; // 新增
+    int64_t getInt(const std::string& key, int64_t defValue) const;
     double getFloat(const std::string& key, double defValue) const;
     bool getBool(const std::string& key, bool defValue) const;
     std::vector<std::string> getStringSet(const std::string& key, const std::vector<std::string>& defValue) const; // 新增

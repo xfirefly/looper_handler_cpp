@@ -117,11 +117,8 @@ bool Preferences::saveToFile(const std::map<std::string, std::any>& data, const 
         if (type == typeid(std::string)) {
             tbl.insert(pair.first, std::any_cast<std::string>(pair.second));
         }
-        else if (type == typeid(int)) {
-            tbl.insert(pair.first, std::any_cast<int>(pair.second));
-        }
-        else if (type == typeid(long long)) {
-            tbl.insert(pair.first, std::any_cast<long long>(pair.second));
+        else if (type == typeid(int64_t)) {
+            tbl.insert(pair.first, std::any_cast<int64_t>(pair.second));
         }
         else if (type == typeid(double)) {
             tbl.insert(pair.first, static_cast<double>(std::any_cast<double>(pair.second)));
@@ -176,35 +173,17 @@ std::string Preferences::getString(const std::string& key, const std::string& de
     return defValue;
 }
 
-int Preferences::getInt(const std::string& key, int defValue) const {
+int64_t Preferences::getInt(const std::string& key, int64_t defValue) const {
     std::lock_guard<std::mutex> lock(mMutex);
     const auto it = mData.find(key);
     if (it != mData.end()) {
-        // 首先检查它是否直接就是 int 类型
-        if (it->second.type() == typeid(int)) {
-            return std::any_cast<int>(it->second);
-        }
-        // 由于 loadFromFile 会将所有整数存为 long long, 我们需要处理这种情况
-        if (it->second.type() == typeid(long long)) {
-            long long val = std::any_cast<long long>(it->second);
-            // 在转换前，检查数值是否在 int 的范围内，防止溢出
-            if (val >= INT_MIN && val <= INT_MAX) {
-                return static_cast<int>(val);
-            }
+        if (it->second.type() == typeid(int64_t)) {
+            return std::any_cast<int64_t>(it->second);
         }
     }
     return defValue;
 }
-
-long long Preferences::getLong(const std::string& key, long long defValue) const {
-    std::lock_guard<std::mutex> lock(mMutex);
-    const auto it = mData.find(key);
-    if (it != mData.end() && it->second.type() == typeid(long long)) {
-        return std::any_cast<long long>(it->second);
-    }
-    return defValue;
-}
-
+ 
 double Preferences::getFloat(const std::string& key, double defValue) const {
     std::lock_guard<std::mutex> lock(mMutex);
     const auto it = mData.find(key);
@@ -266,12 +245,7 @@ Preferences::Editor& Preferences::Editor::putString(const std::string& key, cons
     return *this;
 }
 
-Preferences::Editor& Preferences::Editor::putInt(const std::string& key, int value) {
-    mModifications[key] = value;
-    return *this;
-}
-
-Preferences::Editor& Preferences::Editor::putLong(const std::string& key, long long value) {
+Preferences::Editor& Preferences::Editor::putInt(const std::string& key, int64_t value) {
     mModifications[key] = value;
     return *this;
 }

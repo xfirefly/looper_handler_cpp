@@ -77,17 +77,7 @@ TEST_F(PreferencesTest, IntValue) {
     EXPECT_EQ(prefs->getInt("non_existent_key", -1), -1);
 }
 
-// 3. 测试新增功能: Long
-TEST_F(PreferencesTest, LongValue) {
-    long long large_number = 9876543210LL;
-    auto editor = prefs->edit();
-    editor->putLong("large_number", large_number);
-    editor->commit();
-
-    EXPECT_EQ(prefs->getLong("large_number", 0LL), large_number);
-    EXPECT_EQ(prefs->getLong("non_existent_key", -1LL), -1LL);
-}
-
+ 
 
 // 4. 测试基本数据类型: Float
 TEST_F(PreferencesTest, FloatValue) {
@@ -184,7 +174,7 @@ TEST_F(PreferencesTest, GetAll) {
     auto all_prefs = prefs->getAll();
     ASSERT_EQ(all_prefs.size(), 3);
     EXPECT_EQ(std::any_cast<std::string>(all_prefs["name"]), "test");
-    EXPECT_EQ(std::any_cast<int>(all_prefs["version"]), 1);
+    EXPECT_EQ(std::any_cast<int64_t>(all_prefs["version"]), 1);
     EXPECT_EQ(std::any_cast<bool>(all_prefs["enabled"]), true);
 }
 
@@ -274,10 +264,13 @@ to_be_modified = "change_me"
 
     // 3. 只修改其中一个值并提交
    prefs1->edit()->putString("to_be_modified", "i_was_changed").commit();
+   prefs1->edit()->putStringSet("new_string_set", {"item1", "item2"}).commit();
     
     // 4. 再次创建一个全新的实例，强制从磁盘重新加载，以验证持久化结果
     auto prefs2 = core::PreferencesManager::getInstance(TEST_PREFS_NAME);
 
+    EXPECT_EQ(prefs1, prefs2); // 确保两个实例是同一个
+    
     // 5. 验证
     // a) 验证被修改的值是否正确
     EXPECT_EQ(prefs2->getString("to_be_modified", ""), "i_was_changed");
@@ -285,10 +278,10 @@ to_be_modified = "change_me"
     // b) (关键) 验证所有未被修改的值是否仍然存在且正确
     EXPECT_EQ(prefs2->getString("string_val", ""), "original_string");
     EXPECT_EQ(prefs2->getInt("int_val", 0), 123);
-    EXPECT_EQ(prefs2->getLong("long_val", 0LL), 9876543210LL);
+    EXPECT_EQ(prefs2->getInt("long_val", 0), 9876543210);
     EXPECT_DOUBLE_EQ(prefs2->getFloat("float_val", 0.0), 45.6);
     EXPECT_TRUE(prefs2->getBool("bool_val", false));
 
     // c) 检查总数是否正确，确保没有多余或缺少键
-    EXPECT_EQ(prefs2->getAll().size(), 6);
+    EXPECT_EQ(prefs2->getAll().size(), 7);
 }

@@ -20,8 +20,7 @@ void print_all_prefs(const std::shared_ptr<core::Preferences>& prefs) {
                 std::cout << "\"" << core::PreferencesManager::getInstance("sample_prefs")->getString(pair.first, "") << "\" (String)";
             } else if (type == typeid(int)) {
                 std::cout << prefs->getInt(pair.first, 0) << " (int)";
-            } else if (type == typeid(long long)) {
-                std::cout << prefs->getLong(pair.first, 0LL) << " (long long)";
+     
             } else if (type == typeid(double)) {
                 std::cout << prefs->getFloat(pair.first, 0.0) << " (double)";
             } else if (type == typeid(bool)) {
@@ -85,7 +84,7 @@ int main() {
     auto editor = prefs->edit();
     editor->putString("user_name", "TestUser");
     editor->putInt("login_count", 5);
-    editor->putLong("last_login_timestamp", 1672531200000LL); // long long
+ 
     editor->putFloat("user_score", 98.6); // double
     editor->putBool("is_premium_member", true);
     editor->putStringSet("user_tags", {"developer", "gamer", "C++"});

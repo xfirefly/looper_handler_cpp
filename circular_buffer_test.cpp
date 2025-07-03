@@ -12,7 +12,7 @@ class CircularBufferTest : public ::testing::Test {
 protected:
     // 定义缓冲区的参数：8个块，每个块1024字节
     static const size_t chunks_count = 8;
-    static const size_t chunk_size = 1024;
+    static const size_t chunk_size = 4096;
 
     // 指向被测试对象的指针
     CircularBuffer<chunks_count, chunk_size>* cb;

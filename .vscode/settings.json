@@ -84,6 +84,8 @@
         "filesystem": "cpp",
         "valarray": "cpp",
         "source_location": "cpp",
-        "climits": "cpp"
+        "climits": "cpp",
+        "pthread.h": "c",
+        "audiobuf.h": "c"
     }
 }

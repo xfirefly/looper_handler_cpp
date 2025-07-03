@@ -8,6 +8,11 @@ set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF) # 推荐关闭 CXX 扩展
 
+# 为所有 C 目标设置 C11 标准
+set(CMAKE_C_STANDARD 11)
+set(CMAKE_C_STANDARD_REQUIRED ON)
+set(CMAKE_C_EXTENSIONS OFF)
+
 # ------------------------------------------------------------------
 # 寻找依赖包
 # ------------------------------------------------------------------
@@ -39,22 +44,20 @@ add_library(looper_handler
 )
 
 # Set C standard to C11 for the target
-set_target_properties(looper_handler
-    PROPERTIES
-    C_STANDARD 11
-    C_STANDARD_REQUIRED ON
-    C_EXTENSIONS OFF
-)
+# set_target_properties(looper_handler
+#     PROPERTIES
+#     C_STANDARD 11
+#     C_STANDARD_REQUIRED ON
+#     C_EXTENSIONS OFF
+# )
 
-# For MSVC, enable C11 atomics support needed by ringbuffer.c
-if(MSVC)
-  target_compile_options(looper_handler PUBLIC "/experimental:c11atomics")
-endif()
 
 # 链接线程库到您的核心库
 # PUBLIC 表示任何链接 looper_handler 的目标也会自动链接 Threads
 target_link_libraries(looper_handler PUBLIC Threads::Threads)
 
+find_package(PThreads4W REQUIRED)
+ 
 
 # --- 测试设置 ---
 enable_testing()
@@ -117,6 +120,24 @@ target_link_libraries(circular_buffer_test PRIVATE GTest::Main)
 gtest_add_tests(TARGET circular_buffer_test)
 
  
+ 
+# 11. audiobuf 单元测试 (C11版本)
+add_executable(audiobuf_test_c11 audiobuf_test_c11.c)
+target_link_libraries(audiobuf_test_c11 PRIVATE looper_handler PThreads4W::PThreads4W)
+# 由于这不是gtest，我们不使用 gtest_add_tests
+# 我们可以通过 `add_test` 命令将其添加到 ctest 测试集中
+add_test(NAME AudioBufC11Test COMMAND audiobuf_test_c11)
+
+
+
+# For MSVC, enable C11 atomics support needed by ringbuffer.c
+if(MSVC)
+  target_compile_options(looper_handler PUBLIC "/experimental:c11atomics")
+  target_compile_options(audiobuf_test_c11 PUBLIC "/experimental:c11atomics")
+endif()
+
+
+
 
 #[=[
 

@@ -36,6 +36,12 @@ public:
   bool wasFull() const;
   bool isLockFree() const;
 
+  void clear() {
+    _head.store(0, std::memory_order_release);
+    _tail.store(0, std::memory_order_release);
+  }
+
+
 private:
   size_t increment(size_t idx) const; 
 

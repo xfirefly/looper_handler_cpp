@@ -4,7 +4,13 @@
 
 #define USE_MLOCK 1
 #ifdef USE_MLOCK
-#include <sys/mman.h>
+    #ifdef _MSC_VER
+        // Include the main Windows header for MSVC
+        #include <windows.h>
+    #else
+        // Include the POSIX header for other compilers (GCC, Clang)
+        #include <sys/mman.h>
+    #endif
 #endif /* USE_MLOCK */
 
 #include "ringbuffer.h"
@@ -77,7 +83,13 @@ ringbuffer_destroy (ringbuffer_t * rb)
 {
 #ifdef USE_MLOCK
 	if (rb->mlocked) {
-		munlock (rb->buf, rb->size);
+        #ifdef _MSC_VER
+            // Windows implementation using VirtualUnlock
+            VirtualUnlock(rb->buf, rb->size);
+        #else
+            // POSIX implementation using munlock
+            munlock(rb->buf, rb->size);
+        #endif
 	}
 #endif /* USE_MLOCK */
 	free (rb->buf);
@@ -90,9 +102,18 @@ int
 ringbuffer_mlock (ringbuffer_t * rb)
 {
 #ifdef USE_MLOCK
-	if (mlock (rb->buf, rb->size)) {
-		return -1;
-	}
+    #ifdef _MSC_VER
+        // Windows implementation using VirtualLock
+        if (!VirtualLock(rb->buf, rb->size)) {
+            // You might want to call GetLastError() here for more detailed error info
+            return -1;
+        }
+    #else
+        // POSIX implementation using mlock
+        if (mlock(rb->buf, rb->size)) {
+            return -1;
+        }
+    #endif
 #endif /* USE_MLOCK */
 	rb->mlocked = 1;
 	return 0;

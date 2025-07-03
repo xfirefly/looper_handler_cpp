@@ -2,7 +2,7 @@
 cmake_minimum_required(VERSION 3.14)
 
 # 定义项目名称和语言
-project(LooperHandlerProject LANGUAGES CXX)
+project(LooperHandlerProject LANGUAGES CXX C)
  
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
@@ -23,6 +23,8 @@ find_package(Threads REQUIRED)
 # ------------------------------------------------------------------
 # 将您的核心代码编译成一个库 (这是一个好习惯)
 add_library(looper_handler 
+    ringbuffer.c
+    audiobuf.c
     HandlerThread.cpp
     HandlerThread.h
     LocalBroadcast.cpp
@@ -33,8 +35,21 @@ add_library(looper_handler
     WorkerThread.h    
     Preferences.cpp
     Preferences.h
-    ringbuffer.c
+
 )
+
+# Set C standard to C11 for the target
+set_target_properties(looper_handler
+    PROPERTIES
+    C_STANDARD 11
+    C_STANDARD_REQUIRED ON
+    C_EXTENSIONS OFF
+)
+
+# For MSVC, enable C11 atomics support needed by ringbuffer.c
+if(MSVC)
+  target_compile_options(looper_handler PUBLIC "/experimental:c11atomics")
+endif()
 
 # 链接线程库到您的核心库
 # PUBLIC 表示任何链接 looper_handler 的目标也会自动链接 Threads
@@ -87,6 +102,21 @@ add_executable(looper_handler_test looper_handler_test.cpp)
 target_link_libraries(looper_handler_test PRIVATE looper_handler GTest::Main)
 gtest_add_tests(TARGET looper_handler_test)
 
+add_executable(ringbuffer_demo ringbuffer_demo.cpp)
+target_link_libraries(ringbuffer_demo PRIVATE looper_handler)
+ 
+# 8. RingBuffer 单元测试
+add_executable(ringbuffer_test ringbuffer_test.cpp)
+target_link_libraries(ringbuffer_test PRIVATE looper_handler GTest::Main)
+gtest_add_tests(TARGET ringbuffer_test)
+
+ 
+# 9. CircularBuffer 单元测试
+add_executable(circular_buffer_test circular_buffer_test.cpp)
+target_link_libraries(circular_buffer_test PRIVATE GTest::Main)
+gtest_add_tests(TARGET circular_buffer_test)
+
+ 
 
 #[=[
 
@@ -102,7 +132,7 @@ ctest -C Debug -V
 ;检查 c++ 版本是否足够健壮, 可用于生产环境, 如果不够健壮请说明
 
  
-为 Preferences 类编写一套全面、健壮的单元测试代码。 覆盖所有公开函数和各种边界情况，确保其在生产环境中的稳定性和可靠性
+为 CircularBuffer 类编写一套全面、健壮的单元测试代码。 覆盖所有公开函数和各种边界情况，确保其在生产环境中的稳定性和可靠性
  
 为  Preferences 类生成一份详尽的 示例代码。这份代码将作为一份清晰的开发文档，覆盖所有公开函数和各种可能的使用场景, 供程序员参考
 

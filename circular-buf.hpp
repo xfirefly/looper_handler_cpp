@@ -7,8 +7,7 @@
 
 #include <string.h>
 #include <assert.h>
-
-#include <android/log.h>
+ 
 
 template<size_t ChunksCount, size_t ChunkSize>
 class CircularBuffer
@@ -58,8 +57,10 @@ class CircularBuffer
 		 */
 		void Flush()
 		{
-			full_queue = Queue();
-			free_queue = Queue();
+			// full_queue = Queue();
+			// free_queue = Queue();
+			full_queue.clear();
+    		free_queue.clear();
 			FlushChunks();
 		}
 

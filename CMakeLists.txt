@@ -33,6 +33,7 @@ add_library(looper_handler
     WorkerThread.h    
     Preferences.cpp
     Preferences.h
+    ringbuffer.c
 )
 
 # 链接线程库到您的核心库

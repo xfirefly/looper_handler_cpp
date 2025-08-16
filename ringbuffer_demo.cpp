@@ -48,7 +48,7 @@ void thread2()
   std::unique_ptr<uint8_t[]> message_buffer(new uint8_t[message_size]);
 
   for (size_t i = 0; i < message_count;)
-  {
+  { 
     size_t can_read = ringbuffer_read_space(rb);
     size_t count = 0;
     if (can_read >= message_size)

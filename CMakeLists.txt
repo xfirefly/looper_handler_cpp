@@ -1,17 +1,20 @@
-# CMake 最低版本要求 (建议 3.14 或更高，以更好地支持 vcpkg)
-cmake_minimum_required(VERSION 3.14)
+# CMake 最低版本要求 (建议 3.20 或更高，以更好地支持 vcpkg)
+cmake_minimum_required(VERSION 3.20)
 
 # 定义项目名称和语言
 project(LooperHandlerProject LANGUAGES CXX C)
  
 set(CMAKE_CXX_STANDARD 20)
-set(CMAKE_CXX_STANDARD_REQUIRED ON)
+set(CMAKE_CXX_STANDARD_REQUIRED True)
 set(CMAKE_CXX_EXTENSIONS OFF) # 推荐关闭 CXX 扩展
 
 # 为所有 C 目标设置 C11 标准
 set(CMAKE_C_STANDARD 11)
-set(CMAKE_C_STANDARD_REQUIRED ON)
+set(CMAKE_C_STANDARD_REQUIRED True)
 set(CMAKE_C_EXTENSIONS OFF)
+
+set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
+
 
 # ------------------------------------------------------------------
 # 寻找依赖包
@@ -22,6 +25,8 @@ find_package(GTest REQUIRED)
 
 # 寻找线程库 (代码中使用了 std::thread)
 find_package(Threads REQUIRED)
+
+find_package(folly REQUIRED)
 
 # ------------------------------------------------------------------
 # 定义您的 Looper/Handler 库
@@ -58,6 +63,8 @@ target_link_libraries(looper_handler PUBLIC Threads::Threads)
 
 find_package(PThreads4W REQUIRED)
  
+find_package(Boost REQUIRED COMPONENTS asio)
+    
 
 # --- 测试设置 ---
 enable_testing()
@@ -119,26 +126,55 @@ add_executable(circular_buffer_test circular_buffer_test.cpp)
 target_link_libraries(circular_buffer_test PRIVATE GTest::Main)
 gtest_add_tests(TARGET circular_buffer_test)
 
+add_executable(channel channel.cpp)
+target_link_libraries(channel PRIVATE Boost::asio)
+target_compile_definitions(channel PRIVATE -D_WIN32_WINNT=0x0A00)
+
+find_package(asio CONFIG REQUIRED)
  
- 
+add_executable(worker_thread worker_thread.cpp)
+target_link_libraries(worker_thread PRIVATE Boost::asio)
+target_compile_definitions(worker_thread PRIVATE -D_WIN32_WINNT=0x0A00)
+
+add_executable(tcp_client tcp_client.cpp)
+target_link_libraries(tcp_client PRIVATE Boost::asio)
+target_compile_definitions(tcp_client PRIVATE -D_WIN32_WINNT=0x0A00)
+
+
+add_executable(echo_server echo_server.cpp)
+target_link_libraries(echo_server PRIVATE Boost::asio)
+target_compile_definitions(echo_server PRIVATE -D_WIN32_WINNT=0x0A00)
+
 # 11. audiobuf 单元测试 (C11版本)
 add_executable(audiobuf_test_c11 audiobuf_test_c11.c)
 target_link_libraries(audiobuf_test_c11 PRIVATE looper_handler PThreads4W::PThreads4W)
 # 由于这不是gtest，我们不使用 gtest_add_tests
 # 我们可以通过 `add_test` 命令将其添加到 ctest 测试集中
 add_test(NAME AudioBufC11Test COMMAND audiobuf_test_c11)
+ 
+# add_executable(fo_coro fo_coro.cpp)
+# target_link_libraries(fo_coro PRIVATE Folly::folly Folly::folly_deps Folly::follybenchmark Folly::folly_test_util)
+# target_compile_features(fo_coro PRIVATE cxx_std_20)
 
+# add_executable(fo_main fo_main.cpp)
+# target_link_libraries(fo_main PRIVATE Folly::folly Folly::folly_deps Folly::follybenchmark Folly::folly_test_util)
+# target_compile_features(fo_main PRIVATE cxx_std_20)
+ 
+# add_executable(fo_queue fo_queue.cpp)
+# target_link_libraries(fo_queue PRIVATE Folly::folly Folly::folly_deps Folly::follybenchmark Folly::folly_test_util)
+# target_compile_features(fo_queue PRIVATE cxx_std_20)
 
 
 # For MSVC, enable C11 atomics support needed by ringbuffer.c
 if(MSVC)
   target_compile_options(looper_handler PUBLIC "/experimental:c11atomics")
   target_compile_options(audiobuf_test_c11 PUBLIC "/experimental:c11atomics")
+
+  #target_compile_options(fo_coro PUBLIC "/await")
+  #target_compile_options(fo_main PUBLIC "/std:c++20")
 endif()
 
-
-
-
+ 
 #[=[
 
 # 运行测试

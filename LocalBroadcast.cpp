@@ -6,7 +6,7 @@
 namespace core {
 
     // --- Intent, IntentFilter 实现 (保持不变) ---
-    Intent::Intent(std::string_view action) : m_action(action) {}
+    Intent::Intent(std::string_view action) : what(0), m_action(action) {}
     std::string Intent::getAction() const { return m_action; }
     IntentFilter::IntentFilter(std::string_view action) { addAction(action); }
     void IntentFilter::addAction(std::string_view action) { m_actions.emplace_back(action); }
@@ -14,19 +14,19 @@ namespace core {
 
 
     // =================================================================================
-    // LocalBroadcastManager 实现 (健壮版本)
+    // BroadcastManager 实现 (健壮版本)
     // =================================================================================
-    LocalBroadcastManager& LocalBroadcastManager::getInstance() {
-        static LocalBroadcastManager instance;
+    BroadcastManager& BroadcastManager::getInstance() {
+        static BroadcastManager instance;
         return instance;
     }
 
-    LocalBroadcastManager::LocalBroadcastManager() {
+    BroadcastManager::BroadcastManager() {
         mWorkerThread = std::make_unique<core::WorkerThread>("LocalBroadcastThread");
         mWorkerThread->start();
     }
  
-    LocalBroadcastManager::~LocalBroadcastManager() {
+    BroadcastManager::~BroadcastManager() {
         if (mWorkerThread) {
             mWorkerThread->finish();
             mWorkerThread->join();
@@ -34,7 +34,7 @@ namespace core {
     }
 
     // [FIX 1] registerReceiver 实现更新
-    void LocalBroadcastManager::registerReceiver(std::shared_ptr<BroadcastReceiver> receiver, const IntentFilter& filter) {
+    void BroadcastManager::registerReceiver(std::shared_ptr<BroadcastReceiver> receiver, const IntentFilter& filter) {
         if (!receiver) return;
 
         std::lock_guard<std::mutex> lock(m_mutex);
@@ -53,7 +53,7 @@ namespace core {
     }
 
     // [FIX 1] unregisterReceiver 实现更新
-    void LocalBroadcastManager::unregisterReceiver(const std::shared_ptr<BroadcastReceiver>& receiver) {
+    void BroadcastManager::unregisterReceiver(const std::shared_ptr<BroadcastReceiver>& receiver) {
         if (!receiver) return;
 
         std::lock_guard<std::mutex> lock(m_mutex);
@@ -90,7 +90,13 @@ namespace core {
         }
     }
 
-    void LocalBroadcastManager::sendBroadcast(const Intent& intent) {
+    void BroadcastManager::sendBroadcast(const std::string_view action, int what) {
+        Intent intent(action);
+        intent.what = what;
+        sendBroadcast(intent);
+    }
+
+    void BroadcastManager::sendBroadcast(const Intent& intent) {
         std::vector<std::weak_ptr<BroadcastReceiver>> receiversToNotify;
 
         {
@@ -99,12 +105,24 @@ namespace core {
 
             auto it = m_actions.find(action);
             if (it != m_actions.end()) {
-                receiversToNotify = it->second;
+                auto& receivers = it->second;
+                
+                // [Fix Memory Leak] Lazy cleanup: Remove expired weak pointers
+                // 这一点很重要：防止 map 无限膨胀
+                receivers.erase(
+                    std::remove_if(receivers.begin(), receivers.end(),
+                        [](const std::weak_ptr<BroadcastReceiver>& wp) {
+                            return wp.expired();
+                        }),
+                    receivers.end()
+                );
+
+                receiversToNotify = receivers; // Copy the valid ones
             }
         }
 
         if (!mWorkerThread) {
-            std::cerr << "ERROR: WorkerThread is not available in LocalBroadcastManager." << std::endl;
+            std::cerr << "ERROR: WorkerThread is not available in BroadcastManager." << std::endl;
             return;
         }
 
@@ -175,7 +193,7 @@ public:
 
 
 int main() {
-    auto& lbm = LocalBroadcastManager::getInstance();
+    auto& lbm = BroadcastManager::getInstance();
     IntentFilter filter("my_action");
 
     // 1. 注册两个长期存活的接收器

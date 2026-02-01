@@ -36,6 +36,8 @@ namespace core {
             }
             return nullptr;
         }
+
+        int what;
     private:
         std::string m_action;
         std::map<std::string, std::any> m_extras;
@@ -58,21 +60,53 @@ namespace core {
 
 
     // =================================================================================
-    // LocalBroadcastManager - 核心管理类 (已集成 WorkerThread)
+    // BroadcastManager - 核心管理类 (已集成 WorkerThread)
     // =================================================================================
-    class LocalBroadcastManager final {
+    /**
+     * @class BroadcastManager
+     * @brief 进程内本地广播管理器。
+     *
+     * 用于在应用内的不同组件之间发送和接收广播 Intent。
+     * 所有的广播发送和接收都在同一个进程中，且是线程安全的。
+     * 
+     * <h2>使用示例</h2>
+     * @code
+     * // 1. 定义接收器
+     * class MyReceiver : public core::BroadcastReceiver {
+     *     void onReceive(const core::Intent& intent) override {
+     *         if (intent.getAction() == "com.example.UPDATE") {
+     *             std::cout << "Received update broadcast!" << std::endl;
+     *         }
+     *     }
+     * };
+     * 
+     * // 2. 注册接收器
+     * auto receiver = std::make_shared<MyReceiver>();
+     * core::IntentFilter filter("com.example.UPDATE");
+     * core::BroadcastManager::getInstance().registerReceiver(receiver, filter);
+     * 
+     * // 3. 发送广播
+     * core::Intent intent("com.example.UPDATE");
+     * core::BroadcastManager::getInstance().sendBroadcast(intent);
+     * 
+     * // 4. 注销 (BroadcastManager 析构也会自动清理，但显式注销更好)
+     * core::BroadcastManager::getInstance().unregisterReceiver(receiver);
+     * @endcode
+     */
+    class BroadcastManager final {
     public:
-        static LocalBroadcastManager& getInstance();
-        ~LocalBroadcastManager(); // 添加析构函数以管理线程
-        LocalBroadcastManager(const LocalBroadcastManager&) = delete;
-        LocalBroadcastManager& operator=(const LocalBroadcastManager&) = delete;
+        static BroadcastManager& getInstance();
+        ~BroadcastManager(); // 添加析构函数以管理线程
+        BroadcastManager(const BroadcastManager&) = delete;
+        BroadcastManager& operator=(const BroadcastManager&) = delete;
 
         void registerReceiver(std::shared_ptr<BroadcastReceiver> receiver, const IntentFilter& filter);
         void unregisterReceiver(const std::shared_ptr<BroadcastReceiver>& receiver);
+        void sendBroadcast(const std::string_view action, int what);
         void sendBroadcast(const Intent& intent);
 
     private:
-        LocalBroadcastManager(); // 构造函数设为私有
+        BroadcastManager(); // 构造函数设为私有
 
         std::mutex m_mutex;
         std::map<std::string, std::vector<std::weak_ptr<BroadcastReceiver>>> m_actions;

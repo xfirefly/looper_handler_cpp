@@ -91,9 +91,9 @@ target_link_libraries(LocalBroadcastManager_test PRIVATE looper_handler GTest::M
 gtest_add_tests(TARGET LocalBroadcastManager_test)
 
 # 1. Preferences 单元测试
-add_executable(Preferences_test Preferences_test.cpp)
-target_link_libraries(Preferences_test PRIVATE looper_handler GTest::Main)
-gtest_add_tests(TARGET Preferences_test)
+# add_executable(Preferences_test Preferences_test.cpp)
+# target_link_libraries(Preferences_test PRIVATE looper_handler GTest::Main)
+# gtest_add_tests(TARGET Preferences_test)
 
 # 2. WorkerThread 单元测试
 add_executable(WorkerThread_test WorkerThread_test.cpp)

@@ -18,6 +18,24 @@ namespace core {
      * 这个 Looper 可以用来创建 Handler，以便在新线程上处理消息和可运行对象。
      * 调用 start() 来启动线程，然后调用 getLooper() 来获取该线程的 Looper。
      * 当不再需要时，调用 quit() 或 quitSafely() 来停止线程。
+     *
+     * <h2>使用示例</h2>
+     * @code
+     * core::HandlerThread thread("MyHandlerThread");
+     * thread.start();
+     * 
+     * auto looper = thread.getLooper();
+     * auto handler = std::make_shared<core::Handler>(looper);
+     * 
+     * handler->post([](){
+     *     // 在 MyHandlerThread 中执行的代码
+     *     std::cout << "Running on HandlerThread" << std::endl;
+     * });
+     * 
+     * // 稍后停止
+     * thread.quit();
+     * thread.join();
+     * @endcode
      */
     class HandlerThread {
     public:

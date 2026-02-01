@@ -61,12 +61,12 @@ public:
 // --- LocalBroadcastManager 测试套件 ---
 class LocalBroadcastManagerTest : public ::testing::Test {
 protected:
-    LocalBroadcastManager* lbm;
+    BroadcastManager* lbm;
 
     // 在每个测试开始前执行
     void SetUp() override {
-        // 获取 LocalBroadcastManager 的单例
-        lbm = &LocalBroadcastManager::getInstance();
+        // 获取 BroadcastManager 的单例
+        lbm = &BroadcastManager::getInstance();
     }
 
     // 每个测试结束后不执行特殊操作

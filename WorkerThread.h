@@ -14,6 +14,28 @@ namespace core {
  * WorkerThread 继承自 HandlerThread，并提供了一个简单的接口
  * 来提交（post）任务到后台线程执行。所有提交的任务将按照
  * 提交的顺序在一个单独的线程中串行执行。
+ *
+ * <h2>使用示例</h2>
+ * @code
+ * core::WorkerThread worker("BackgroundWorker");
+ * worker.start();
+ * 
+ * // 提交任务
+ * worker.post([](){
+ *     // 在后台线程执行
+ *     int result = 1 + 1;
+ *     std::cout << "Result: " << result << std::endl;
+ * });
+ * 
+ * // 延迟提交
+ * worker.postDelayed([](){
+ *     std::cout << "Executed after 2 seconds" << std::endl;
+ * }, 2000);
+ * 
+ * // 停止
+ * worker.finish(); // 等待队列清空后停止
+ * worker.join();
+ * @endcode
  */
 class WorkerThread final : public HandlerThread {
 public:
@@ -69,7 +91,6 @@ public:
      */
     bool finishNow();
         
-    
 private:
     // 一个简单的内部 Handler，仅用于处理 std::function<void()> 任务
     class WorkerHandler : public Handler {
@@ -79,9 +100,6 @@ private:
     };
 
     std::shared_ptr<WorkerHandler> mWorkerHandler;
-
-public:
-    std::shared_ptr<WorkerHandler> getHandler() { return mWorkerHandler;};    
 };
 
 } // namespace core

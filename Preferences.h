@@ -29,6 +29,28 @@ public:
     virtual void onPreferenceChanged(Preferences* preferences, const std::string& key) = 0;
 };
 
+/**
+ * @class Preferences
+ * @brief 提供轻量级的键值对存储，用于保存应用配置。
+ * 
+ * 类似于 Android 的 SharedPreferences。支持多种数据类型（String, Int, Float, Bool, StringSet）。
+ * 数据持久化到本地文件。
+ *
+ * <h2>使用示例</h2>
+ * @code
+ * auto prefs = core::PreferencesManager::getInstance("user_settings");
+ * 
+ * // 写配置
+ * prefs->edit()
+ *      ->putString("username", "alice")
+ *      ->putInt("login_count", 42)
+ *      ->commit();
+ * 
+ * // 读配置
+ * std::string username = prefs->getString("username", "guest");
+ * int count = prefs->getInt("login_count", 0);
+ * @endcode
+ */
 class Preferences : public std::enable_shared_from_this<Preferences> {
 public:
     class Editor {
@@ -80,6 +102,7 @@ private:
     std::map<std::string, std::any> mData;
     std::vector<std::shared_ptr<OnPreferenceChangeListener>> mListeners; // 新增
     mutable std::mutex mListenersMutex; // 新增
+    mutable std::mutex mFileWriteMutex; // 新增：用于序列化文件写操作防止竞争
 };
 
 class PreferencesManager {

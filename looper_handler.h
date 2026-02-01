@@ -132,7 +132,35 @@ namespace core {
     };
 
     // Enables sending and processing Message objects associated with a Looper's MessageQueue
-
+    /**
+     * @class Handler
+     * @brief 消息处理器，用于发送和处理与线程关联的消息。
+     *
+     * Handler 允许你发送消息（Message）和可运行对象（Runnable）到线程的消息队列中。
+     * 并且处理从消息队列中取出的消息。
+     * 每个 Handler 实例都绑定到一个单独的线程和该线程的消息队列。
+     * 
+     * <h2>使用示例</h2>
+     * @code
+     * class MyHandler : public core::Handler {
+     * public:
+     *     using Handler::Handler; // 使用基类构造函数
+     *     
+     *     void handleMessage(const core::Message& msg) override {
+     *         switch (msg.what) {
+     *             case 1:
+     *                 std::cout << "Received message 1" << std::endl;
+     *                 break;
+     *         }
+     *     }
+     * };
+     * 
+     * // 在 HandlerThread 中使用
+     * Handler 实例必须通过 std::make_shared 创建，禁止在栈上分配，否则发送消息时会崩溃。
+     * auto handler = std::make_shared<MyHandler>(looper);
+     * handler->sendMessage(handler->obtainMessage(1));
+     * @endcode
+     */
     class Handler : public std::enable_shared_from_this<Handler> {
     private:
         std::shared_ptr<Looper> mLooper;

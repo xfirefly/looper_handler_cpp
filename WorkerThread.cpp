@@ -22,9 +22,15 @@ WorkerThread::WorkerThread(const std::string& name)
 
 WorkerThread::~WorkerThread() {
     // 确保线程被正确清理
-    finish();
-    join();
+    if (mWorkerHandler) {
+        finish();
+    }
+    else {
+        // 如果 Handler 不存在，直接调用基类的 quit()
+        HandlerThread::quit();
+    }
 }
+
 
 void WorkerThread::start() {
     HandlerThread::start(); // 启动基类的线程和 Looper

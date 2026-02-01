@@ -1,6 +1,5 @@
 ﻿#pragma once
-
-#include "looper_handler.h" // 依赖 Handler 机制
+#include "WorkerThread.h"
 #include <functional>
 #include <memory>
 #include <chrono>
@@ -10,24 +9,24 @@ namespace core {
 
     /**
      * @class Debouncer
-     * @brief 基于 Handler 的防抖动执行器。
+     * @brief 基于 WorkerThread 的防抖动执行器。
      *
      * Debouncer 确保在给定的延迟时间内，如果连续多次调用，只有最后一次调用会被执行。
-     * 与之前的版本不同，此版本不创建新线程，而是利用 Handler 将任务调度到目标线程执行。
+     * 与之前的版本不同，此版本不创建新线程，而是利用 WorkerThread 将任务调度到目标线程执行。
      */
     template<typename... Args>
     class Debouncer {
     public:
         /**
          * @brief 构造函数
-         * @param handler 用于调度延迟任务的 Handler (例如 WorkerThread 的 handler)。
+         * @param worker 用于调度延迟任务的 WorkerThread (例如 WorkerThread 的 worker)。
          * @param func 要执行的目标函数。
          * @param delay 防抖延迟时间。
          */
-        Debouncer(std::shared_ptr<Handler> handler, std::function<void(Args...)> func, std::chrono::milliseconds delay)
-            : handler_(std::move(handler)), func_(std::move(func)), delay_(delay) {
-            if (!handler_) {
-                throw std::invalid_argument("Debouncer: Handler cannot be null.");
+        Debouncer(std::shared_ptr<WorkerThread> worker, std::function<void(Args...)> func, std::chrono::milliseconds delay)
+            : worker_(std::move(worker)), func_(std::move(func)), delay_(delay) {
+            if (!worker_) {
+                throw std::invalid_argument("Debouncer: WorkerThread cannot be null.");
             }
         }
 
@@ -51,7 +50,7 @@ namespace core {
 
             // 1. 取消上一次的调用（如果存在）
             // 我们通过将旧的 token 标记为 false 来实现逻辑取消。
-            // 之前的任务在 Handler 中醒来时会检查这个值。
+            // 之前的任务在 WorkerThread 中醒来时会检查这个值。
             if (active_token_) {
                 *active_token_ = false;
             }
@@ -65,10 +64,10 @@ namespace core {
             // Lambda 内部也不会因为访问 `this->func_` 而导致悬空指针崩溃。
             auto func_copy = func_;
 
-            // 4. 提交延迟任务到 Handler
+            // 4. 提交延迟任务到 WorkerThread
             // 注意：args... 也会被按值捕获（复制）进 Lambda
-            handler_->postDelayed([weak_token, func_copy, args...]() {
-                // 在 Handler 线程中执行：
+            worker_->postDelayed([weak_token, func_copy, args...]() {
+                // 在 WorkerThread 线程中执行：
                 // 尝试锁定 weak_ptr。如果 Debouncer 已经析构且 Token 引用计数归零，lock 会返回空。
                 if (auto token = weak_token.lock()) {
                     // 检查 Token 值。如果为 true，说明这是最新的任务且未被取消。
@@ -80,7 +79,7 @@ namespace core {
         }
 
     private:
-        std::shared_ptr<Handler> handler_;
+        std::shared_ptr<WorkerThread> worker_;
         std::function<void(Args...)> func_;
         std::chrono::milliseconds delay_;
 

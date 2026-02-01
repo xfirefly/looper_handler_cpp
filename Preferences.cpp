@@ -1,16 +1,20 @@
 ﻿#include "Preferences.h"
-#include "WorkerThread.h"
+ 
 #define TOML_ENABLE_FORMATTERS 1
-#include "toml.hpp" // 包含 tomlplusplus 库
+#include "toml++/toml.hpp" // 包含 tomlplusplus 库
+#include "main/constants.h"
 #include <fstream>
 #include <iostream>
 #include <filesystem>
 #include <cstdlib>
 #include <algorithm> // for std::find
 #include <climits>   // for INT_MIN, INT_MAX
+#include "platform.h"
+
 
 namespace core {
 
+ 
 // --- PreferencesManager (无需改动) ---
 std::mutex PreferencesManager::sMutex;
 std::map<std::string, std::shared_ptr<Preferences>> PreferencesManager::sInstances;
@@ -30,35 +34,12 @@ std::shared_ptr<Preferences> PreferencesManager::getDefaultPreferences() {
     return getInstance("default_prefs");
 }
 
-
 // --- Preferences 实现 ---
 Preferences::Preferences(const std::string& name) {
-    std::filesystem::path dir_path;
-
-#ifdef _WIN32
-    char* buffer = nullptr;
-    size_t size = 0;
-    if (_dupenv_s(&buffer, &size, "USERPROFILE") == 0 && buffer != nullptr) {
-        dir_path = buffer;
-        free(buffer);
-    }
-    else {
-        dir_path = ".";
-    }
-#else
-    const char* home_dir = std::getenv("HOME");
-    dir_path = (home_dir ? home_dir : ".");
-#endif
-
-    dir_path /= ".cpp_prefs/";
-
-    std::filesystem::create_directories(dir_path);
-    mFilePath = (dir_path / (name + ".toml")).string();
+    mFilePath = (Platform::getAppDataPath() / (name + "_settings.toml")).string();
 
     loadFromFile();
 }
-
- 
 
 void Preferences::loadFromFile() {
     std::lock_guard<std::mutex> lock(mMutex);
@@ -136,6 +117,7 @@ bool Preferences::saveToFile(const std::map<std::string, std::any>& data, const 
     }
 
     try {
+        std::lock_guard<std::mutex> fileLock(mFileWriteMutex); // 🔒 加上写锁
         std::ofstream file(mFilePath, std::ios::out | std::ios::trunc);
         file << tbl;
         std::cout << "Preferences saved to " << mFilePath << std::endl;

@@ -1,20 +1,18 @@
 #include "WorkerThread.h"
 #include "Debouncer.h"
 #include <iostream>
+#include <memory>
 
 int main() {
     // 1. 准备后台线程
-    core::WorkerThread worker("BackgroundWorker");
-    worker.start();
-
-    // 2. 获取 Handler
+    auto worker = std::make_shared<core::WorkerThread>( );
+    worker->start();
  
-    auto handler = worker.getHandler();
 
     // 3. 创建 Debouncer
     // 任务将在 worker 线程中执行，防抖时间 500ms
     core::Debouncer<std::string> searchDebouncer(
-        handler, 
+        worker, 
         [](std::string text) {
             std::cout << "[Worker] Searching for: " << text << std::endl;
         }, 
@@ -35,6 +33,5 @@ int main() {
     std::this_thread::sleep_for(std::chrono::seconds(1));
 
     // 5. 清理
-    worker.quit();
-    worker.join();
+    worker.reset();
 }

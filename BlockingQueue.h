@@ -28,6 +28,29 @@ public:
  * - 生产者通过 `push` 向队列尾部添加元素。
  * - 消费者通过 `pop` 从队列头部取出元素。
  * - 如果队列为空，`pop` 操作会阻塞消费者线程，直到有新元素被推入或队列被关闭。
+ *
+ * <h2>使用示例</h2>
+ * @code
+ * core::BlockingQueue<std::string> queue;
+ *
+ * // 消费者线程
+ * std::thread consumer([&queue]() {
+ *     try {
+ *         while (true) {
+ *             std::string msg = queue.pop();
+ *             std::cout << "Received: " << msg << std::endl;
+ *         }
+ *     } catch (const core::BlockingQueueClosed&) {
+ *         std::cout << "Queue closed, consumer exiting." << std::endl;
+ *     }
+ * });
+ *
+ * // 生产者线程
+ * queue.push("Hello");
+ * queue.push("World");
+ * queue.close(); // 关闭队列，通知消费者退出
+ * consumer.join();
+ * @endcode
  */
 template <typename T>
 class BlockingQueue

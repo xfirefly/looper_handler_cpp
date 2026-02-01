@@ -62,9 +62,10 @@ add_library(looper_handler
 target_link_libraries(looper_handler PUBLIC Threads::Threads)
 
 find_package(PThreads4W REQUIRED)
- 
-find_package(Boost REQUIRED COMPONENTS asio)
-    
+find_package(asio CONFIG REQUIRED) 
+find_package(Boost REQUIRED COMPONENTS asio) 
+find_package(Boost REQUIRED COMPONENTS beast)
+find_package(OpenSSL REQUIRED)
 
 # --- 测试设置 ---
 enable_testing()
@@ -73,6 +74,17 @@ enable_testing()
 include(GoogleTest)
 
 # --- 可执行文件和测试定义 ---
+
+add_executable(beast_coro beast_coro.cpp)
+target_link_libraries(beast_coro PRIVATE 
+    Boost::system         # Asio often needs this
+    OpenSSL::SSL          # The SSL library
+    OpenSSL::Crypto       # The Crypto library
+    Boost::beast 
+    Boost::asio
+)
+target_compile_options(beast_coro PRIVATE "/bigobj")
+
 
 add_executable(LocalBroadcastManager_test LocalBroadcastManager_test.cpp) 
 target_link_libraries(LocalBroadcastManager_test PRIVATE looper_handler GTest::Main)
@@ -130,7 +142,7 @@ add_executable(channel channel.cpp)
 target_link_libraries(channel PRIVATE Boost::asio)
 target_compile_definitions(channel PRIVATE -D_WIN32_WINNT=0x0A00)
 
-find_package(asio CONFIG REQUIRED)
+
  
 add_executable(worker_thread worker_thread.cpp)
 target_link_libraries(worker_thread PRIVATE Boost::asio)
@@ -144,6 +156,13 @@ target_compile_definitions(tcp_client PRIVATE -D_WIN32_WINNT=0x0A00)
 add_executable(echo_server echo_server.cpp)
 target_link_libraries(echo_server PRIVATE Boost::asio)
 target_compile_definitions(echo_server PRIVATE -D_WIN32_WINNT=0x0A00)
+ 
+
+# Debouncer_test.cpp
+add_executable(Debouncer_test Debouncer_test.cpp)
+target_link_libraries(Debouncer_test PRIVATE looper_handler)
+target_compile_definitions(Debouncer_test PRIVATE -D_WIN32_WINNT=0x0A00) 
+
 
 # 11. audiobuf 单元测试 (C11版本)
 add_executable(audiobuf_test_c11 audiobuf_test_c11.c)

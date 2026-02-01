@@ -69,6 +69,7 @@ public:
      */
     bool finishNow();
         
+    
 private:
     // 一个简单的内部 Handler，仅用于处理 std::function<void()> 任务
     class WorkerHandler : public Handler {
@@ -78,6 +79,9 @@ private:
     };
 
     std::shared_ptr<WorkerHandler> mWorkerHandler;
+
+public:
+    std::shared_ptr<WorkerHandler> getHandler() { return mWorkerHandler;};    
 };
 
 } // namespace core

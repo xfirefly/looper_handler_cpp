@@ -1,6 +1,8 @@
 # CMake 最低版本要求 (建议 3.20 或更高，以更好地支持 vcpkg)
 cmake_minimum_required(VERSION 3.20)
 
+# set(VCPKG_OVERLAY_PORTS "${CMAKE_CURRENT_SOURCE_DIR}/custom-ports/ffmpeg")
+
 # 定义项目名称和语言
 project(LooperHandlerProject LANGUAGES CXX C)
  

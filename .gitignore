@@ -11,5 +11,5 @@ Debug
 /AirplayLibrary/Release
 /CryptLibrary/Release
 build
-
+vcpkg_installed
 
